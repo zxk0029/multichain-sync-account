@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const evnVarPrefix = "ETH_WALLET"
+const evnVarPrefix = "WALLET"
 
 func prefixEnvVars(name string) []string {
 	return []string{evnVarPrefix + "_" + name}
