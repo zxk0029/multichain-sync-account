@@ -1,8 +1,9 @@
 package flags
 
 import (
-	"github.com/urfave/cli/v2"
 	"time"
+
+	"github.com/urfave/cli/v2"
 )
 
 const evnVarPrefix = "WALLET"
@@ -17,14 +18,6 @@ var (
 		Value:   "./migrations",
 		Usage:   "path for database migrations",
 		EnvVars: prefixEnvVars("MIGRATIONS_DIR"),
-	}
-	// chain flags
-	ChainIdFlag = &cli.UintFlag{
-		Name:     "chain-id",
-		Usage:    "The port of the api",
-		EnvVars:  prefixEnvVars("CHAIN_ID"),
-		Value:    1,
-		Required: true,
 	}
 	RpcUrlFlag = &cli.StringFlag{
 		Name:     "rpc-url",
@@ -44,28 +37,16 @@ var (
 		EnvVars: prefixEnvVars("CONFIRMATIONS"),
 		Value:   64,
 	}
-	DepositIntervalFlag = &cli.DurationFlag{
-		Name:    "deposit-interval",
+	SynchronizerIntervalFlag = &cli.DurationFlag{
+		Name:    "sync-interval",
 		Usage:   "The interval of l1 synchronization",
-		EnvVars: prefixEnvVars("DEPOSIT_INTERVAL"),
+		EnvVars: prefixEnvVars("SYNC_INTERVAL"),
 		Value:   time.Second * 5,
 	}
-	WithdrawIntervalFlag = &cli.DurationFlag{
-		Name:    "withdraw-interval",
-		Usage:   "The interval of token withdraw",
-		EnvVars: prefixEnvVars("WITHDRAW_INTERVAL"),
-		Value:   time.Second * 5,
-	}
-	CollectIntervalFlag = &cli.DurationFlag{
-		Name:    "collect-interval",
-		Usage:   "The interval of collect wallet funding",
-		EnvVars: prefixEnvVars("COLLECT_INTERVAL"),
-		Value:   time.Second * 5,
-	}
-	ColdIntervalFlag = &cli.DurationFlag{
-		Name:    "cold-interval",
-		Usage:   "The interval of transfer token to cold wallet",
-		EnvVars: prefixEnvVars("COLD_INTERVAL"),
+	WorkerIntervalFlag = &cli.DurationFlag{
+		Name:    "worker-interval",
+		Usage:   "The interval of worker interval",
+		EnvVars: prefixEnvVars("WORKER_INTERVAL"),
 		Value:   time.Second * 5,
 	}
 	BlocksStepFlag = &cli.UintFlag{
@@ -203,14 +184,11 @@ var (
 
 var requireFlags = []cli.Flag{
 	MigrationsFlag,
-	ChainIdFlag,
 	RpcUrlFlag,
 	StartingHeightFlag,
 	ConfirmationsFlag,
-	DepositIntervalFlag,
-	WithdrawIntervalFlag,
-	CollectIntervalFlag,
-	ColdIntervalFlag,
+	SynchronizerIntervalFlag,
+	WorkerIntervalFlag,
 	BlocksStepFlag,
 	RpcHostFlag,
 	RpcPortFlag,

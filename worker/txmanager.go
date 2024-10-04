@@ -15,7 +15,7 @@ import (
 
 type TxManager struct {
 	db             *database.DB
-	chainConf      *config.ChainConfig
+	chainNodeConf  *config.ChainNodeConfig
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
@@ -25,7 +25,7 @@ func NewTxManager(cfg *config.Config, db *database.DB, shutdown context.CancelCa
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &TxManager{
 		db:             db,
-		chainConf:      &cfg.Chain,
+		chainNodeConf:  &cfg.ChainNode,
 		resourceCtx:    resCtx,
 		resourceCancel: resCancel,
 		tasks: tasks.Group{HandleCrit: func(err error) {

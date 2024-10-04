@@ -11,17 +11,15 @@ import (
 )
 
 const (
-	defaulConfirmations     = 64
-	defaultDepositInterval  = 5000
-	defaultWithdrawInterval = 500
-	defaultCollectInterval  = 500
-	defaultColdInterval     = 500
-	defaultBlocksStep       = 500
+	defaulConfirmations         = 64
+	defaultSynchronizerInterval = 5000
+	defaultWorkerInterval       = 500
+	defaultBlocksStep           = 500
 )
 
 type Config struct {
 	Migrations     string
-	Chain          ChainConfig
+	ChainNode      ChainNodeConfig
 	MasterDB       DBConfig
 	SlaveDB        DBConfig
 	SlaveDbEnable  bool
@@ -31,16 +29,13 @@ type Config struct {
 	MetricsServer  ServerConfig
 }
 
-type ChainConfig struct {
-	ChainID          uint
-	RpcUrl           string
-	StartingHeight   uint
-	Confirmations    uint
-	DepositInterval  uint
-	WithdrawInterval uint
-	CollectInterval  uint
-	ColdInterval     uint
-	BlocksStep       uint
+type ChainNodeConfig struct {
+	RpcUrl               string
+	StartingHeight       uint
+	Confirmations        uint
+	SynchronizerInterval uint
+	WorkerInterval       uint
+	BlocksStep           uint
 }
 
 type DBConfig struct {
@@ -67,47 +62,36 @@ func LoadConfig(cliCtx *cli.Context) (Config, error) {
 	var cfg Config
 	cfg = NewConfig(cliCtx)
 
-	if cfg.Chain.Confirmations == 0 {
-		cfg.Chain.Confirmations = defaulConfirmations
+	if cfg.ChainNode.Confirmations == 0 {
+		cfg.ChainNode.Confirmations = defaulConfirmations
 	}
 
-	if cfg.Chain.DepositInterval == 0 {
-		cfg.Chain.DepositInterval = defaultDepositInterval
+	if cfg.ChainNode.SynchronizerInterval == 0 {
+		cfg.ChainNode.SynchronizerInterval = defaultSynchronizerInterval
 	}
 
-	if cfg.Chain.WithdrawInterval == 0 {
-		cfg.Chain.WithdrawInterval = defaultWithdrawInterval
+	if cfg.ChainNode.WorkerInterval == 0 {
+		cfg.ChainNode.WorkerInterval = defaultWorkerInterval
 	}
 
-	if cfg.Chain.CollectInterval == 0 {
-		cfg.Chain.CollectInterval = defaultCollectInterval
+	if cfg.ChainNode.BlocksStep == 0 {
+		cfg.ChainNode.BlocksStep = defaultBlocksStep
 	}
 
-	if cfg.Chain.ColdInterval == 0 {
-		cfg.Chain.ColdInterval = defaultColdInterval
-	}
-
-	if cfg.Chain.BlocksStep == 0 {
-		cfg.Chain.BlocksStep = defaultBlocksStep
-	}
-
-	log.Info("loaded chain config", "config", cfg.Chain)
+	log.Info("loaded chain config", "config", cfg.ChainNode)
 	return cfg, nil
 }
 
 func NewConfig(ctx *cli.Context) Config {
 	return Config{
 		Migrations: ctx.String(flags.MigrationsFlag.Name),
-		Chain: ChainConfig{
-			ChainID:          ctx.Uint(flags.ChainIdFlag.Name),
-			RpcUrl:           ctx.String(flags.RpcUrlFlag.Name),
-			StartingHeight:   ctx.Uint(flags.StartingHeightFlag.Name),
-			Confirmations:    ctx.Uint(flags.ConfirmationsFlag.Name),
-			DepositInterval:  ctx.Uint(flags.DepositIntervalFlag.Name),
-			WithdrawInterval: ctx.Uint(flags.WithdrawIntervalFlag.Name),
-			CollectInterval:  ctx.Uint(flags.CollectIntervalFlag.Name),
-			ColdInterval:     ctx.Uint(flags.ColdIntervalFlag.Name),
-			BlocksStep:       ctx.Uint(flags.BlocksStepFlag.Name),
+		ChainNode: ChainNodeConfig{
+			RpcUrl:               ctx.String(flags.RpcUrlFlag.Name),
+			StartingHeight:       ctx.Uint(flags.StartingHeightFlag.Name),
+			Confirmations:        ctx.Uint(flags.ConfirmationsFlag.Name),
+			SynchronizerInterval: ctx.Uint(flags.SynchronizerIntervalFlag.Name),
+			WorkerInterval:       ctx.Uint(flags.WorkerIntervalFlag.Name),
+			BlocksStep:           ctx.Uint(flags.BlocksStepFlag.Name),
 		},
 		MasterDB: DBConfig{
 			Host:     ctx.String(flags.MasterDbHostFlag.Name),

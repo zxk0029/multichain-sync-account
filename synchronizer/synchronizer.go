@@ -15,7 +15,7 @@ import (
 
 type Synchronizer struct {
 	db             *database.DB
-	chainConf      *config.ChainConfig
+	chainNodeConf  *config.ChainNodeConfig
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
@@ -25,7 +25,7 @@ func NewSynchronizer(cfg *config.Config, db *database.DB, shutdown context.Cance
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &Synchronizer{
 		db:             db,
-		chainConf:      &cfg.Chain,
+		chainNodeConf:  &cfg.ChainNode,
 		resourceCtx:    resCtx,
 		resourceCancel: resCancel,
 		tasks: tasks.Group{HandleCrit: func(err error) {
