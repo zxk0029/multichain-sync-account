@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/dapplink-labs/multichain-transaction-syncs/database"
+	"github.com/dapplink-labs/multichain-transaction-syncs/protobuf/dal-wallet-go"
 )
 
 const MaxRecvMessageSize = 1024 * 1024 * 300
@@ -54,17 +55,20 @@ func (s *RpcServer) Start(ctx context.Context) error {
 			log.Error("Could not start tcp listener. ")
 		}
 
-		opt := grpc.MaxRecvMsgSize(MaxRecvMessageSize)
-
+		// 注册gRPC服务
 		gs := grpc.NewServer(
-			opt,
+			// 用于设置gRPC客户端或服务器能够接收的最大消息大小
+			grpc.MaxRecvMsgSize(MaxRecvMessageSize),
+			// 用于设置gRPC服务器的拦截器
 			grpc.ChainUnaryInterceptor(
 				nil,
 			),
 		)
+		// 为gRPC服务器启用了反射功能，使客户端能够动态查询服务器提供的服务和接口。
 		reflection.Register(gs)
 
-		//wallet.RegisterWalletServiceServer(gs, s)
+		// 注册接口服务
+		dal_wallet_go.RegisterScanChainServer(gs, NewScanService(s.db))
 
 		log.Info("Grpc info", "port", s.GrpcPort, "address", listener.Addr())
 		if err := gs.Serve(listener); err != nil {

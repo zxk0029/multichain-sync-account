@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS addresses (
     guid  VARCHAR PRIMARY KEY,
     address VARCHAR NOT NULL,
     address_type SMALLINT NOT NULL DEFAULT 0,
-    private_key VARCHAR NOT NULL,
     public_key VARCHAR NOT NULL,
+    business_uid VARCHAR NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp>0)
 );
 CREATE INDEX IF NOT EXISTS addresses_address ON addresses(address);

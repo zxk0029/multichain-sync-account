@@ -1,0 +1,41 @@
+syntax = "proto3";
+option go_package = "./protobuf/dal-wallet-go";
+package syncs;
+
+enum ReturnCode{
+  ERROR = 0;
+  SUCCESS = 1;
+}
+
+// 样板Response
+message BoilerplateResponse{
+  ReturnCode Code = 1;
+  string Msg = 2;
+}
+
+// 注册扫链服务参数
+message SignUpScanServiceRequest{
+  // 用户唯一标识
+  string RequestId = 1;
+}
+
+// 地址类型
+message Address{
+  //0:用户地址；1:热钱包地址(归集地址)；2:冷钱包地址
+  uint32 AddressType = 1;
+  // 地址
+  string Address = 2;
+}
+
+// 设置扫链地址
+message SetScanAddressRequest{
+  string RequestId = 1;
+  repeated Address AddressList = 2;
+}
+
+service ScanChain {
+  // 注册扫链服务
+  rpc SignUpScanService(SignUpScanServiceRequest) returns (BoilerplateResponse) {}
+  // 设置扫链地址
+  rpc SetScanAddress(stream SetScanAddressRequest) returns (BoilerplateResponse) {}
+}

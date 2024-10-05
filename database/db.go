@@ -59,8 +59,7 @@ func NewDB(ctx context.Context, dbConfig config.DBConfig) (*DB, error) {
 	}
 
 	db := &DB{
-		gorm: gorm,
-
+		gorm:         gorm,
 		CreateTable:  NewCreateTableDB(gorm),
 		Blocks:       NewBlocksDB(gorm),
 		Addresses:    NewAddressesDB(gorm),
