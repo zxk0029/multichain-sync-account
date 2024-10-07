@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	multichain_transaction_syncs "github.com/dapplink-labs/multichain-transaction-syncs"
 
 	"github.com/urfave/cli/v2"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	multichain_transaction_syncs "github.com/dapplink-labs/multichain-transaction-syncs"
 	"github.com/dapplink-labs/multichain-transaction-syncs/common/cliapp"
 	"github.com/dapplink-labs/multichain-transaction-syncs/common/opio"
 	"github.com/dapplink-labs/multichain-transaction-syncs/config"
@@ -21,6 +21,7 @@ import (
 func runMultichainSync(ctx *cli.Context, shutdown context.CancelCauseFunc) (cliapp.Lifecycle, error) {
 	log.Info("exec wallet sync")
 	cfg, err := config.LoadConfig(ctx)
+	fmt.Println()
 	if err != nil {
 		log.Error("failed to load config", "err", err)
 		return nil, err

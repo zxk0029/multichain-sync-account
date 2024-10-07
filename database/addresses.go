@@ -23,6 +23,7 @@ type AddressesView interface {
 	QueryAddressesByToAddress(string, *common.Address) (*Addresses, error)
 	QueryHotWalletInfo(string) (*Addresses, error)
 	QueryColdWalletInfo(string) (*Addresses, error)
+	GetAllAddresses(string) ([]*Addresses, error)
 }
 
 type AddressesDB interface {
@@ -79,4 +80,16 @@ func (db *addressesDB) QueryColdWalletInfo(requestId string) (*Addresses, error)
 		return nil, err
 	}
 	return &addressEntry, nil
+}
+
+func (db *addressesDB) GetAllAddresses(requestId string) ([]*Addresses, error) {
+	var addresses []*Addresses
+	err := db.gorm.Table("addresses_" + requestId).Find(&addresses).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return addresses, nil
 }

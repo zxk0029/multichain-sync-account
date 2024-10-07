@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ScanChain_SignUpScanService_FullMethodName = "/syncs.ScanChain/SignUpScanService"
 	ScanChain_SetScanAddress_FullMethodName    = "/syncs.ScanChain/SetScanAddress"
+	ScanChain_RefreshCache_FullMethodName      = "/syncs.ScanChain/RefreshCache"
 )
 
 // ScanChainClient is the client API for ScanChain service.
@@ -31,6 +32,8 @@ type ScanChainClient interface {
 	SignUpScanService(ctx context.Context, in *SignUpScanServiceRequest, opts ...grpc.CallOption) (*BoilerplateResponse, error)
 	// 设置扫链地址
 	SetScanAddress(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SetScanAddressRequest, BoilerplateResponse], error)
+	// 刷新缓存
+	RefreshCache(ctx context.Context, in *RefreshCacheRequest, opts ...grpc.CallOption) (*BoilerplateResponse, error)
 }
 
 type scanChainClient struct {
@@ -64,6 +67,16 @@ func (c *scanChainClient) SetScanAddress(ctx context.Context, opts ...grpc.CallO
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ScanChain_SetScanAddressClient = grpc.ClientStreamingClient[SetScanAddressRequest, BoilerplateResponse]
 
+func (c *scanChainClient) RefreshCache(ctx context.Context, in *RefreshCacheRequest, opts ...grpc.CallOption) (*BoilerplateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BoilerplateResponse)
+	err := c.cc.Invoke(ctx, ScanChain_RefreshCache_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ScanChainServer is the server API for ScanChain service.
 // All implementations should embed UnimplementedScanChainServer
 // for forward compatibility.
@@ -72,6 +85,8 @@ type ScanChainServer interface {
 	SignUpScanService(context.Context, *SignUpScanServiceRequest) (*BoilerplateResponse, error)
 	// 设置扫链地址
 	SetScanAddress(grpc.ClientStreamingServer[SetScanAddressRequest, BoilerplateResponse]) error
+	// 刷新缓存
+	RefreshCache(context.Context, *RefreshCacheRequest) (*BoilerplateResponse, error)
 }
 
 // UnimplementedScanChainServer should be embedded to have
@@ -86,6 +101,9 @@ func (UnimplementedScanChainServer) SignUpScanService(context.Context, *SignUpSc
 }
 func (UnimplementedScanChainServer) SetScanAddress(grpc.ClientStreamingServer[SetScanAddressRequest, BoilerplateResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SetScanAddress not implemented")
+}
+func (UnimplementedScanChainServer) RefreshCache(context.Context, *RefreshCacheRequest) (*BoilerplateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefreshCache not implemented")
 }
 func (UnimplementedScanChainServer) testEmbeddedByValue() {}
 
@@ -132,6 +150,24 @@ func _ScanChain_SetScanAddress_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ScanChain_SetScanAddressServer = grpc.ClientStreamingServer[SetScanAddressRequest, BoilerplateResponse]
 
+func _ScanChain_RefreshCache_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshCacheRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ScanChainServer).RefreshCache(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ScanChain_RefreshCache_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ScanChainServer).RefreshCache(ctx, req.(*RefreshCacheRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ScanChain_ServiceDesc is the grpc.ServiceDesc for ScanChain service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -142,6 +178,10 @@ var ScanChain_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignUpScanService",
 			Handler:    _ScanChain_SignUpScanService_Handler,
+		},
+		{
+			MethodName: "RefreshCache",
+			Handler:    _ScanChain_RefreshCache_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

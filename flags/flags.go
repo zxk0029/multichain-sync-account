@@ -19,6 +19,14 @@ var (
 		Usage:   "path for database migrations",
 		EnvVars: prefixEnvVars("MIGRATIONS_DIR"),
 	}
+
+	ChainNameFlag = &cli.StringFlag{
+		Name:     "chain-name",
+		Usage:    "chain name",
+		EnvVars:  prefixEnvVars("CHAIN_NAME"),
+		Required: true,
+	}
+
 	RpcUrlFlag = &cli.StringFlag{
 		Name:     "rpc-url",
 		Usage:    "HTTP provider URL for chain",
@@ -185,6 +193,7 @@ var (
 var requireFlags = []cli.Flag{
 	MigrationsFlag,
 	RpcUrlFlag,
+	ChainNameFlag,
 	StartingHeightFlag,
 	ConfirmationsFlag,
 	SynchronizerIntervalFlag,

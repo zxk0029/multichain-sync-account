@@ -33,9 +33,15 @@ message SetScanAddressRequest{
   repeated Address AddressList = 2;
 }
 
+message RefreshCacheRequest{
+  string RequestId = 1;
+}
+
 service ScanChain {
   // 注册扫链服务
   rpc SignUpScanService(SignUpScanServiceRequest) returns (BoilerplateResponse) {}
   // 设置扫链地址
   rpc SetScanAddress(stream SetScanAddressRequest) returns (BoilerplateResponse) {}
+  // 刷新缓存
+  rpc RefreshCache(RefreshCacheRequest) returns (BoilerplateResponse) {}
 }

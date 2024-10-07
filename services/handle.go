@@ -2,19 +2,19 @@ package services
 
 import (
 	"context"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/slices"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/strings"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/google/uuid"
 	"io"
 	"time"
 
+	"github.com/dapplink-labs/multichain-transaction-syncs/common/cache"
+	"github.com/dapplink-labs/multichain-transaction-syncs/common/slices"
+	"github.com/dapplink-labs/multichain-transaction-syncs/common/strings"
 	"github.com/dapplink-labs/multichain-transaction-syncs/database"
 	"github.com/dapplink-labs/multichain-transaction-syncs/database/dynamic"
 	"github.com/dapplink-labs/multichain-transaction-syncs/protobuf/dal-wallet-go"
-
 	"github.com/dgraph-io/ristretto"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/google/uuid"
+
 	"google.golang.org/grpc"
 )
 
@@ -22,7 +22,7 @@ type ScanService struct {
 	// 数据库操作
 	db *database.DB
 	// 缓存，基于bloom filter实现
-	cache *ristretto.Cache[string, database.Addresses]
+	cache *ristretto.Cache[string, *database.Addresses]
 }
 
 // SetScanAddress 设置扫链地址
@@ -53,7 +53,7 @@ func (s ScanService) SetScanAddress(stream grpc.ClientStreamingServer[dal_wallet
 		}
 		// 过滤已经存在缓存中的地址
 		addresses := slices.Filter[*dal_wallet_go.Address](req.AddressList, func(item *dal_wallet_go.Address) bool {
-			_, found := s.cache.Get(req.RequestId + item.Address)
+			_, found := s.cache.Get(item.Address)
 			return !found
 		})
 		sa := make([]database.Addresses, len(addresses))
@@ -66,7 +66,7 @@ func (s ScanService) SetScanAddress(stream grpc.ClientStreamingServer[dal_wallet
 				AddressType: uint8(addr.AddressType),
 				Timestamp:   uint64(time.Now().Unix()),
 			}
-			s.cache.Set(req.RequestId+addr.Address, sa[i], 1)
+			s.cache.Set(addr.Address, &sa[i], 1)
 		}
 		// 将地址存入数据库
 		err = s.db.Addresses.StoreAddresses(req.RequestId, sa, uint64(len(sa)))
@@ -74,7 +74,7 @@ func (s ScanService) SetScanAddress(stream grpc.ClientStreamingServer[dal_wallet
 		if err != nil {
 			// 删除缓存
 			for _, addr := range addresses {
-				s.cache.Del(req.RequestId + addr.Address)
+				s.cache.Del(addr.Address)
 			}
 			// 给客户端发送错误
 			return stream.SendAndClose(&dal_wallet_go.BoilerplateResponse{
@@ -104,19 +104,23 @@ func (s ScanService) SignUpScanService(ctx context.Context, request *dal_wallet_
 	}, nil
 }
 
+// RefreshCache 刷新缓存
+func (s ScanService) RefreshCache(ctx context.Context, request *dal_wallet_go.RefreshCacheRequest) (*dal_wallet_go.BoilerplateResponse, error) {
+	addresses, _ := s.db.Addresses.GetAllAddresses(request.RequestId)
+	// 将地址存入缓存
+	for _, addr := range addresses {
+		s.cache.Set(addr.Address.Hex(), addr, 1)
+	}
+	return &dal_wallet_go.BoilerplateResponse{
+		Code: 1,
+		Msg:  "success",
+	}, nil
+}
+
 // NewScanService 创建扫链服务
 func NewScanService(db *database.DB) *ScanService {
-	// 创建一个新的 Ristretto 缓存实例
-	cache, err := ristretto.NewCache[string, database.Addresses](&ristretto.Config[string, database.Addresses]{
-		NumCounters: 1e7,     // number of keys to track frequency of (10M).
-		MaxCost:     1 << 30, // maximum cost of cache (1GB).
-		BufferItems: 64,      // number of keys per Get buffer.
-	})
-	if err != nil {
-		log.Error("create ristretto cache failed", "err", err)
-	}
 	return &ScanService{
 		db:    db,
-		cache: cache,
+		cache: cache.GetGlobalCache(),
 	}
 }

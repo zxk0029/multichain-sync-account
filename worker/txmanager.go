@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	wallet2 "github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
 	"time"
-
-	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/dapplink-labs/multichain-transaction-syncs/common/tasks"
 	"github.com/dapplink-labs/multichain-transaction-syncs/config"
 	"github.com/dapplink-labs/multichain-transaction-syncs/database"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type TxManager struct {
@@ -19,9 +19,11 @@ type TxManager struct {
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
+	// 定时任务
+	ticker *time.Ticker
 }
 
-func NewTxManager(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*TxManager, error) {
+func NewTxManager(cfg *config.Config, db *database.DB, rpcClient wallet2.WalletServiceClient, shutdown context.CancelCauseFunc) (*TxManager, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &TxManager{
 		db:             db,
@@ -31,27 +33,35 @@ func NewTxManager(cfg *config.Config, db *database.DB, shutdown context.CancelCa
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in tx manager: %w", err))
 		}},
+		ticker: time.NewTicker(time.Second * 5),
 	}, nil
 }
 
 func (tm *TxManager) Close() error {
 	var result error
 	tm.resourceCancel()
+	tm.ticker.Stop()
+	log.Info("stop txmanager......")
 	if err := tm.tasks.Wait(); err != nil {
 		result = errors.Join(result, fmt.Errorf("failed to await deposit %w"), err)
 		return result
 	}
+	log.Info("stop txmanager success")
 	return nil
 }
 
 func (tm *TxManager) Start() error {
 	log.Info("start tx manager......")
-	tickerDepositWorker := time.NewTicker(time.Second * 5)
 	tm.tasks.Go(func() error {
-		for range tickerDepositWorker.C {
-			log.Info("start tx manager in worker")
+		for {
+			select {
+			case <-tm.ticker.C:
+				log.Info("start tx manager in worker")
+			case <-tm.resourceCtx.Done():
+				log.Info("stop tx manager in worker")
+				return nil
+			}
 		}
-		return nil
 	})
 	return nil
 }

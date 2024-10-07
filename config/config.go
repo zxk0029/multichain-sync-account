@@ -30,12 +30,14 @@ type Config struct {
 }
 
 type ChainNodeConfig struct {
+	ChainName            string
+	ChainId              string
 	RpcUrl               string
 	StartingHeight       uint
 	Confirmations        uint
 	SynchronizerInterval uint
 	WorkerInterval       uint
-	BlocksStep           uint
+	BlocksStep           uint64
 }
 
 type DBConfig struct {
@@ -86,12 +88,13 @@ func NewConfig(ctx *cli.Context) Config {
 	return Config{
 		Migrations: ctx.String(flags.MigrationsFlag.Name),
 		ChainNode: ChainNodeConfig{
+			ChainName:            ctx.String(flags.ChainNameFlag.Name),
 			RpcUrl:               ctx.String(flags.RpcUrlFlag.Name),
 			StartingHeight:       ctx.Uint(flags.StartingHeightFlag.Name),
 			Confirmations:        ctx.Uint(flags.ConfirmationsFlag.Name),
 			SynchronizerInterval: ctx.Uint(flags.SynchronizerIntervalFlag.Name),
 			WorkerInterval:       ctx.Uint(flags.WorkerIntervalFlag.Name),
-			BlocksStep:           ctx.Uint(flags.BlocksStepFlag.Name),
+			BlocksStep:           ctx.Uint64(flags.BlocksStepFlag.Name),
 		},
 		MasterDB: DBConfig{
 			Host:     ctx.String(flags.MasterDbHostFlag.Name),

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	retry2 "github.com/dapplink-labs/multichain-transaction-syncs/common/retry"
 	"os"
 	"path/filepath"
 
@@ -12,7 +13,6 @@ import (
 
 	"github.com/dapplink-labs/multichain-transaction-syncs/config"
 	_ "github.com/dapplink-labs/multichain-transaction-syncs/database/utils/serializers"
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/retry"
 )
 
 type DB struct {
@@ -45,8 +45,8 @@ func NewDB(ctx context.Context, dbConfig config.DBConfig) (*DB, error) {
 		CreateBatchSize:        3_000,
 	}
 
-	retryStrategy := &retry.ExponentialStrategy{Min: 1000, Max: 20_000, MaxJitter: 250}
-	gorm, err := retry.Do[*gorm.DB](context.Background(), 10, retryStrategy, func() (*gorm.DB, error) {
+	retryStrategy := &retry2.ExponentialStrategy{Min: 1000, Max: 20_000, MaxJitter: 250}
+	gorm, err := retry2.Do[*gorm.DB](context.Background(), 10, retryStrategy, func() (*gorm.DB, error) {
 		gorm, err := gorm.Open(postgres.Open(dsn), &gormConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to database: %w", err)

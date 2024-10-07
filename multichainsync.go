@@ -2,6 +2,7 @@ package multichain_transaction_syncs
 
 import (
 	"context"
+	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -26,10 +27,9 @@ func NewMultiChainSync(ctx context.Context, cfg *config.Config, shutdown context
 		log.Error("init database fail", err)
 		return nil, err
 	}
-
-	txManager, _ := worker.NewTxManager(cfg, db, shutdown)
-	_synchronizer, _ := synchronizer.NewSynchronizer(cfg, db, shutdown)
-
+	rpcClient := wallet_chain_node.InitRpcClient(cfg.ChainNode.RpcUrl)
+	txManager, _ := worker.NewTxManager(cfg, db, rpcClient, shutdown)
+	_synchronizer, _ := synchronizer.NewSynchronizer(cfg, db, rpcClient, shutdown)
 	out := &MultiChainSync{
 		txManager:    txManager,
 		synchronizer: _synchronizer,
@@ -57,6 +57,7 @@ func (mcs *MultiChainSync) Stop(ctx context.Context) error {
 		return err
 	}
 	err = mcs.synchronizer.Close()
+
 	if err != nil {
 		return err
 	}
