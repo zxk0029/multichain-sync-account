@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	multichain_transaction_syncs "github.com/dapplink-labs/multichain-transaction-syncs"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 
@@ -67,7 +68,7 @@ func runMigrations(ctx *cli.Context) error {
 			log.Error("fail to close database", "err", err)
 		}
 	}(db)
-	return db.ExecuteSQLMigration(cfg.Migrations)
+	return db.ExecuteSQLMigration(cfg.Migrations + "/" + strings.ToLower(cfg.ChainNode.TradingModel))
 }
 
 func NewCli(GitCommit string, GitData string) *cli.App {

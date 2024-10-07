@@ -21,19 +21,6 @@ CREATE TABLE IF NOT EXISTS blocks (
 CREATE INDEX IF NOT EXISTS blocks_number ON blocks(number);
 CREATE INDEX IF NOT EXISTS blocks_timestamp ON blocks(timestamp);
 
-
-CREATE TABLE IF NOT EXISTS tokens (
-    guid  VARCHAR PRIMARY KEY,
-    token_address VARCHAR NOT NULL,
-    unit SMALLINT NOT NULL DEFAULT 18,
-    token_name VARCHAR NOT NULL,
-    collect_amount  UINT256 NOT NULL CHECK(collect_amount>0),
-    timestamp INTEGER NOT NULL CHECK(timestamp>0)
-);
-CREATE INDEX IF NOT EXISTS tokens_timestamp ON tokens(timestamp);
-CREATE INDEX IF NOT EXISTS tokens_token_address ON tokens(token_address);
-
-
 CREATE TABLE IF NOT EXISTS addresses (
     guid  VARCHAR PRIMARY KEY,
     address VARCHAR UNIQUE NOT NULL,
@@ -114,3 +101,15 @@ CREATE TABLE IF NOT EXISTS withdraws (
 );
 CREATE INDEX IF NOT EXISTS withdraws_hash ON withdraws(hash);
 CREATE INDEX IF NOT EXISTS withdraws_timestamp ON withdraws(timestamp);
+
+
+CREATE TABLE IF NOT EXISTS tokens
+(
+    guid           VARCHAR PRIMARY KEY,
+    token_address  VARCHAR  NOT NULL,
+    decimals           SMALLINT NOT NULL DEFAULT 18,
+    token_name     VARCHAR  NOT NULL,
+    timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
+);
+CREATE INDEX IF NOT EXISTS tokens_timestamp ON tokens (timestamp);
+CREATE INDEX IF NOT EXISTS tokens_token_address ON tokens (token_address);

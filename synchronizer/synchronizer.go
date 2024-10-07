@@ -104,7 +104,7 @@ func (sync *Synchronizer) Start() error {
 				// 默认交易处理
 				var txHandler = func(tx *wallet.BlockInfoTransactionList) {
 					if sync.chainNodeConf.ChainName == "Ethereum" {
-						ethereum.TxHandler(sync.rpcClient, globalCache, tx)
+						ethereum.TxHandler(sync.rpcClient, sync.db, globalCache, tx)
 					}
 				}
 				// 扫描区块

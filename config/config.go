@@ -31,7 +31,7 @@ type Config struct {
 
 type ChainNodeConfig struct {
 	ChainName            string
-	ChainId              string
+	TradingModel         string
 	RpcUrl               string
 	StartingHeight       uint
 	Confirmations        uint
@@ -89,6 +89,7 @@ func NewConfig(ctx *cli.Context) Config {
 		Migrations: ctx.String(flags.MigrationsFlag.Name),
 		ChainNode: ChainNodeConfig{
 			ChainName:            ctx.String(flags.ChainNameFlag.Name),
+			TradingModel:         ctx.String(flags.TradingModelFlag.Name),
 			RpcUrl:               ctx.String(flags.RpcUrlFlag.Name),
 			StartingHeight:       ctx.Uint(flags.StartingHeightFlag.Name),
 			Confirmations:        ctx.Uint(flags.ConfirmationsFlag.Name),

@@ -37,6 +37,16 @@ message RefreshCacheRequest{
   string RequestId = 1;
 }
 
+message Token{
+  uint32 Decimals = 1;
+  string Address = 2;
+  string TokenName = 3;
+}
+
+message SetTokenAddressRequest{
+  repeated Token TokenList = 1;
+}
+
 service ScanChain {
   // 注册扫链服务
   rpc SignUpScanService(SignUpScanServiceRequest) returns (BoilerplateResponse) {}
@@ -44,4 +54,6 @@ service ScanChain {
   rpc SetScanAddress(stream SetScanAddressRequest) returns (BoilerplateResponse) {}
   // 刷新缓存
   rpc RefreshCache(RefreshCacheRequest) returns (BoilerplateResponse) {}
+  // 设置代币地址
+  rpc SetTokenAddress(stream SetTokenAddressRequest) returns (BoilerplateResponse) {}
 }

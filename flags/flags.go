@@ -27,6 +27,13 @@ var (
 		Required: true,
 	}
 
+	TradingModelFlag = &cli.StringFlag{
+		Name:     "trading-model",
+		Usage:    "trading model",
+		EnvVars:  prefixEnvVars("TRADING_MODEL"),
+		Required: true,
+	}
+
 	RpcUrlFlag = &cli.StringFlag{
 		Name:     "rpc-url",
 		Usage:    "HTTP provider URL for chain",
@@ -194,6 +201,7 @@ var requireFlags = []cli.Flag{
 	MigrationsFlag,
 	RpcUrlFlag,
 	ChainNameFlag,
+	TradingModelFlag,
 	StartingHeightFlag,
 	ConfirmationsFlag,
 	SynchronizerIntervalFlag,

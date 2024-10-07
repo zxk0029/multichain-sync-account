@@ -22,6 +22,7 @@ const (
 	ScanChain_SignUpScanService_FullMethodName = "/syncs.ScanChain/SignUpScanService"
 	ScanChain_SetScanAddress_FullMethodName    = "/syncs.ScanChain/SetScanAddress"
 	ScanChain_RefreshCache_FullMethodName      = "/syncs.ScanChain/RefreshCache"
+	ScanChain_SetTokenAddress_FullMethodName   = "/syncs.ScanChain/SetTokenAddress"
 )
 
 // ScanChainClient is the client API for ScanChain service.
@@ -34,6 +35,8 @@ type ScanChainClient interface {
 	SetScanAddress(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SetScanAddressRequest, BoilerplateResponse], error)
 	// 刷新缓存
 	RefreshCache(ctx context.Context, in *RefreshCacheRequest, opts ...grpc.CallOption) (*BoilerplateResponse, error)
+	// 设置代币地址
+	SetTokenAddress(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SetTokenAddressRequest, BoilerplateResponse], error)
 }
 
 type scanChainClient struct {
@@ -77,6 +80,19 @@ func (c *scanChainClient) RefreshCache(ctx context.Context, in *RefreshCacheRequ
 	return out, nil
 }
 
+func (c *scanChainClient) SetTokenAddress(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SetTokenAddressRequest, BoilerplateResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ScanChain_ServiceDesc.Streams[1], ScanChain_SetTokenAddress_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SetTokenAddressRequest, BoilerplateResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ScanChain_SetTokenAddressClient = grpc.ClientStreamingClient[SetTokenAddressRequest, BoilerplateResponse]
+
 // ScanChainServer is the server API for ScanChain service.
 // All implementations should embed UnimplementedScanChainServer
 // for forward compatibility.
@@ -87,6 +103,8 @@ type ScanChainServer interface {
 	SetScanAddress(grpc.ClientStreamingServer[SetScanAddressRequest, BoilerplateResponse]) error
 	// 刷新缓存
 	RefreshCache(context.Context, *RefreshCacheRequest) (*BoilerplateResponse, error)
+	// 设置代币地址
+	SetTokenAddress(grpc.ClientStreamingServer[SetTokenAddressRequest, BoilerplateResponse]) error
 }
 
 // UnimplementedScanChainServer should be embedded to have
@@ -104,6 +122,9 @@ func (UnimplementedScanChainServer) SetScanAddress(grpc.ClientStreamingServer[Se
 }
 func (UnimplementedScanChainServer) RefreshCache(context.Context, *RefreshCacheRequest) (*BoilerplateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefreshCache not implemented")
+}
+func (UnimplementedScanChainServer) SetTokenAddress(grpc.ClientStreamingServer[SetTokenAddressRequest, BoilerplateResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method SetTokenAddress not implemented")
 }
 func (UnimplementedScanChainServer) testEmbeddedByValue() {}
 
@@ -168,6 +189,13 @@ func _ScanChain_RefreshCache_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ScanChain_SetTokenAddress_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ScanChainServer).SetTokenAddress(&grpc.GenericServerStream[SetTokenAddressRequest, BoilerplateResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ScanChain_SetTokenAddressServer = grpc.ClientStreamingServer[SetTokenAddressRequest, BoilerplateResponse]
+
 // ScanChain_ServiceDesc is the grpc.ServiceDesc for ScanChain service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -188,6 +216,11 @@ var ScanChain_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "SetScanAddress",
 			Handler:       _ScanChain_SetScanAddress_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "SetTokenAddress",
+			Handler:       _ScanChain_SetTokenAddress_Handler,
 			ClientStreams: true,
 		},
 	},
