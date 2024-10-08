@@ -45,7 +45,7 @@ func (b *BlockchainScanner) GetBlockByRange(start, end *big.Int) (*wallet.BlockB
 }
 
 // ScanBlocks 扫描从 lastScannedBlock 开始的区块，每次获取 batchSize 个区块
-func (b *BlockchainScanner) ScanBlocks(lastScannedBlock *big.Int, batchSize uint64, txHandler func(*wallet.BlockInfoTransactionList)) error {
+func (b *BlockchainScanner) ScanBlocks(lastScannedBlock *big.Int, batchSize uint64, txHandler func([]*wallet.BlockInfoTransactionList)) error {
 	// 获取链上的最新区块号
 	latestHeader, err := b.client.GetBlockHeaderByNumber(context.Background(), &wallet.BlockHeaderRequest{Chain: b.chain})
 	if err != nil {
@@ -87,9 +87,7 @@ func (b *BlockchainScanner) ScanBlocks(lastScannedBlock *big.Int, batchSize uint
 				continue
 			}
 			// 处理每个区块中的交易
-			for _, tx := range block.Transactions {
-				txHandler(tx)
-			}
+			txHandler(block.Transactions)
 		}
 		// 更新已扫描的最后区块号
 		lastScannedBlock = endBlockNumber

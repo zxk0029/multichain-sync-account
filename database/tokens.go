@@ -10,11 +10,12 @@ import (
 )
 
 type Tokens struct {
-	GUID         uuid.UUID      `gorm:"primaryKey" json:"guid"`
-	TokenAddress common.Address `json:"token_address" gorm:"serializer:bytes"`
-	Decimals     uint8          `json:"uint"`
-	TokenName    string         `json:"tokens_name"`
-	Timestamp    uint64
+	GUID            uuid.UUID      `gorm:"primaryKey" json:"guid"`
+	TokenAddress    common.Address `json:"token_address" gorm:"serializer:bytes"`
+	Decimals        uint8          `json:"uint"`
+	TokenName       string         `json:"tokens_name"`
+	CollectionLimit uint64         `json:"collection_limit"`
+	Timestamp       uint64         `json:"timestamp"`
 }
 
 type TokensView interface {

@@ -41,6 +41,7 @@ message Token{
   uint32 Decimals = 1;
   string Address = 2;
   string TokenName = 3;
+  uint64 CollectionLimit = 4;
 }
 
 message SetTokenAddressRequest{

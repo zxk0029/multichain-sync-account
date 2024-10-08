@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS tokens
     token_address  VARCHAR  NOT NULL,
     decimals           SMALLINT NOT NULL DEFAULT 18,
     token_name     VARCHAR  NOT NULL,
+    collection_limit UINT256 NOT NULL,
     timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
 );
 CREATE INDEX IF NOT EXISTS tokens_timestamp ON tokens (timestamp);

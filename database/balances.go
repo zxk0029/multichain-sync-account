@@ -2,10 +2,12 @@ package database
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -65,7 +67,7 @@ func (db *balancesDB) UpdateBalances(requestId string, balanceList []Balances, i
 			balance.Balance = new(big.Int).Sub(balance.Balance, balanceList[i].LockBalance)
 			balance.LockBalance = balanceList[i].LockBalance
 		}
-		err := db.gorm.Save(&balance).Error
+		err := db.gorm.Table("balances" + requestId).Save(&balance).Error
 		if err != nil {
 			return err
 		}
@@ -122,5 +124,91 @@ func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(requestId string, addr
 }
 
 func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalance) error {
+	hotWalletBalances, err := db.QueryHotWalletBalances(requestId, big.NewInt(0))
+	if err != nil {
+		log.Error("query hot wallet balances err", "err", err)
+		return err
+	}
+	for _, value := range balanceList {
+		var userBalanceEntry Balances
+		err := db.gorm.Table("balances"+requestId).Where("address = ? and token_address = ? and address_type = ?", strings.ToLower(value.Address.String()), strings.ToLower(value.TokenAddress.String()), 0).Take(&userBalanceEntry).Error
+		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+			balanceValue := &Balances{
+				GUID:         uuid.New(),
+				Address:      value.Address,
+				TokenAddress: value.TokenAddress,
+				AddressType:  value.TxType,
+				Balance:      value.Balance,
+				LockBalance:  value.LockBalance,
+				Timestamp:    uint64(time.Now().Unix()),
+			}
+			errC := db.gorm.Table("balances" + requestId).Create(balanceValue).Error
+			if errC != nil {
+				log.Error("create token info fail", "err", errC)
+				return errC
+			}
+			return nil
+		} else if err == nil {
+			log.Info("handle balance update", "TxType", value.TxType)
+			if value.TxType == 0 { // 0:充值；1:提现；2:归集；3:热转冷；4:冷转热
+				userBalanceEntry.Balance = new(big.Int).Add(userBalanceEntry.Balance, value.Balance)
+				log.Info("Deposit balance update", "TxType", value.TxType, "balance", value.Balance, "afterBalance", userBalanceEntry.Balance)
+				errU := db.gorm.Table("balances" + requestId).Save(&userBalanceEntry).Error
+				if errU != nil {
+					return errU
+				}
+			} else if value.TxType == 1 { // 提现
+				for _, hotWallet := range hotWalletBalances {
+					if hotWallet.Address == value.Address && hotWallet.TokenAddress == value.TokenAddress {
+						hotWallet.LockBalance = big.NewInt(0)
+						errU := db.gorm.Table("balances" + requestId).Save(&hotWallet).Error
+						if errU != nil {
+							return errU
+						}
+					}
+				}
+			} else if value.TxType == 2 { // 归集
+				if len(hotWalletBalances) > 0 {
+					for _, hotWallet := range hotWalletBalances {
+						if hotWallet.Address == value.Address && hotWallet.TokenAddress == value.TokenAddress {
+							userBalanceEntry.LockBalance = big.NewInt(0)
+							errU := db.gorm.Table("balances" + requestId).Save(&userBalanceEntry).Error
+							if errU != nil {
+								return errU
+							}
+							hotWallet.Balance = new(big.Int).Add(hotWallet.Balance, value.Balance)
+							errU = db.gorm.Table("balances" + requestId).Save(&hotWallet).Error
+							if errU != nil {
+								return errU
+							}
+						}
+					}
+				}
+			} else if value.TxType == 3 {
+				if len(hotWalletBalances) > 0 {
+					for _, hotWallet := range hotWalletBalances {
+						hotWallet.LockBalance = big.NewInt(0)
+						err := db.gorm.Table("balances" + requestId).Save(&hotWallet).Error
+						if err != nil {
+							return err
+						}
+					}
+				}
+			} else if value.TxType == 4 {
+				if len(hotWalletBalances) > 0 {
+					for _, hotWallet := range hotWalletBalances {
+						hotWallet.Balance = new(big.Int).Add(hotWallet.Balance, value.Balance)
+						err := db.gorm.Table("balances" + requestId).Save(&hotWallet).Error
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		} else {
+			log.Error("update or create balances fail", "err", err)
+			continue
+		}
+	}
 	return nil
 }

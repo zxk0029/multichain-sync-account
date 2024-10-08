@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/cache"
 	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/chains/ethereum"
 	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/scanner"
 	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
@@ -99,12 +98,10 @@ func (sync *Synchronizer) Start() error {
 				if err != nil {
 					log.Error("Failed to initialize blockchain scanner: %v", err)
 				}
-				// 地址缓存
-				globalCache := cache.GetGlobalCache()
 				// 默认交易处理
-				var txHandler = func(tx *wallet.BlockInfoTransactionList) {
+				var txHandler = func(txs []*wallet.BlockInfoTransactionList) {
 					if sync.chainNodeConf.ChainName == "Ethereum" {
-						ethereum.TxHandler(sync.rpcClient, sync.db, globalCache, tx)
+						ethereum.ProcessBatch(sync.rpcClient, sync.db, txs)
 					}
 				}
 				// 扫描区块

@@ -63,11 +63,12 @@ func (s ScanService) SetTokenAddress(stream grpc.ClientStreamingServer[dal_walle
 		// 遍历请求中的 TokenList，并将 token 信息存入 allTokens 切片
 		for _, token := range req.TokenList {
 			allTokens = append(allTokens, database.Tokens{
-				GUID:         uuid.New(),
-				TokenAddress: common.HexToAddress(token.Address),
-				Decimals:     uint8(token.Decimals),
-				TokenName:    token.TokenName,
-				Timestamp:    uint64(time.Now().Unix()),
+				GUID:            uuid.New(),
+				TokenAddress:    common.HexToAddress(token.Address),
+				Decimals:        uint8(token.Decimals),
+				TokenName:       token.TokenName,
+				CollectionLimit: token.CollectionLimit,
+				Timestamp:       uint64(time.Now().Unix()),
 			})
 		}
 	}
@@ -174,8 +175,6 @@ func (s ScanService) RefreshCache(ctx context.Context, request *dal_wallet_go.Re
 		Msg:  "success",
 	}, nil
 }
-
-//0xdAC17F958D2ee523a2206206994597C13D831ec7
 
 // NewScanService 创建扫链服务
 func NewScanService(db *database.DB) *ScanService {
