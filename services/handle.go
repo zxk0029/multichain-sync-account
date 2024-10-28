@@ -155,7 +155,14 @@ func (s ScanService) SignUpScanService(ctx context.Context, request *dal_wallet_
 	}
 	// 创建表
 	dynamic.CreateTableFromTemplate(request.RequestId, s.db)
-
+	// 创建业务
+	err := s.db.Business.CreateBusiness(request.RequestId)
+	if err != nil {
+		return &dal_wallet_go.BoilerplateResponse{
+			Code: 0,
+			Msg:  err.Error(),
+		}, err
+	}
 	// 返回成功
 	return &dal_wallet_go.BoilerplateResponse{
 		Code: 1,

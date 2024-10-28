@@ -20,6 +20,13 @@ var (
 		EnvVars: prefixEnvVars("MIGRATIONS_DIR"),
 	}
 
+	ChainIdFlag = &cli.StringFlag{
+		Name:     "chain-id",
+		Usage:    "chain id",
+		EnvVars:  prefixEnvVars("CHAIN_ID"),
+		Required: true,
+	}
+
 	ChainNameFlag = &cli.StringFlag{
 		Name:     "chain-name",
 		Usage:    "chain name",
@@ -200,6 +207,7 @@ var (
 var requireFlags = []cli.Flag{
 	MigrationsFlag,
 	RpcUrlFlag,
+	ChainIdFlag,
 	ChainNameFlag,
 	TradingModelFlag,
 	StartingHeightFlag,

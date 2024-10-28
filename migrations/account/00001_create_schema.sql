@@ -114,3 +114,12 @@ CREATE TABLE IF NOT EXISTS tokens
 );
 CREATE INDEX IF NOT EXISTS tokens_timestamp ON tokens (timestamp);
 CREATE INDEX IF NOT EXISTS tokens_token_address ON tokens (token_address);
+
+CREATE TABLE IF NOT EXISTS business
+(
+    guid           VARCHAR PRIMARY KEY,
+    business_uid VARCHAR NOT NULL,
+    timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
+);
+CREATE INDEX IF NOT EXISTS tokens_timestamp ON business (timestamp);
+CREATE INDEX IF NOT EXISTS business_uid ON business (business_uid);

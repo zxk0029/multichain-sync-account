@@ -89,6 +89,7 @@ func (sync *Synchronizer) Close() error {
 
 func (sync *Synchronizer) Start() error {
 	log.Info("start synchronizer......")
+	// 扫链
 	sync.tasks.Go(func() error {
 		for {
 			select {
@@ -110,7 +111,7 @@ func (sync *Synchronizer) Start() error {
 					log.Error("Error scanning blocks: %v", err)
 				}
 			case <-sync.resourceCtx.Done():
-				log.Info("stop synchronizer in worker")
+				log.Info("stop synchronizer scan chain in worker")
 				return nil
 			}
 		}

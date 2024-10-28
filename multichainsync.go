@@ -14,8 +14,9 @@ import (
 )
 
 type MultiChainSync struct {
-	txManager    *worker.TxManager
-	synchronizer *synchronizer.Synchronizer
+	txManager      *worker.TxManager
+	synchronizer   *synchronizer.Synchronizer
+	collectionCold *synchronizer.CollectionCold
 
 	shutdown context.CancelCauseFunc
 	stopped  atomic.Bool
@@ -30,10 +31,13 @@ func NewMultiChainSync(ctx context.Context, cfg *config.Config, shutdown context
 	rpcClient := wallet_chain_node.InitRpcClient(cfg.ChainNode.RpcUrl)
 	txManager, _ := worker.NewTxManager(cfg, db, rpcClient, shutdown)
 	_synchronizer, _ := synchronizer.NewSynchronizer(cfg, db, rpcClient, shutdown)
+	collectionCold, _ := synchronizer.NewCollectionCold(cfg, db, rpcClient, shutdown)
+
 	out := &MultiChainSync{
-		txManager:    txManager,
-		synchronizer: _synchronizer,
-		shutdown:     shutdown,
+		txManager:      txManager,
+		synchronizer:   _synchronizer,
+		collectionCold: collectionCold,
+		shutdown:       shutdown,
 	}
 
 	return out, nil

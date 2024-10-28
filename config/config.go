@@ -30,6 +30,7 @@ type Config struct {
 }
 
 type ChainNodeConfig struct {
+	ChainId              uint64
 	ChainName            string
 	TradingModel         string
 	RpcUrl               string
@@ -88,6 +89,7 @@ func NewConfig(ctx *cli.Context) Config {
 	return Config{
 		Migrations: ctx.String(flags.MigrationsFlag.Name),
 		ChainNode: ChainNodeConfig{
+			ChainId:              ctx.Uint64(flags.ChainIdFlag.Name),
 			ChainName:            ctx.String(flags.ChainNameFlag.Name),
 			TradingModel:         ctx.String(flags.TradingModelFlag.Name),
 			RpcUrl:               ctx.String(flags.RpcUrlFlag.Name),

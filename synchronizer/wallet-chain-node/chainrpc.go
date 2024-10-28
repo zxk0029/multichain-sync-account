@@ -8,7 +8,7 @@ import (
 )
 
 // InitRpcClient 初始化RPC
-func InitRpcClient(addr string) *wallet.WalletServiceClient {
+func InitRpcClient(addr string) wallet.WalletServiceClient {
 	// 创建 gRPC 不安全的连接
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {

@@ -26,6 +26,7 @@ type DB struct {
 	Withdraws    WithdrawsDB
 	Transactions TransactionsDB
 	Tokens       TokensDB
+	Business     BusinessDB
 }
 
 func NewDB(ctx context.Context, dbConfig config.DBConfig) (*DB, error) {
@@ -68,6 +69,7 @@ func NewDB(ctx context.Context, dbConfig config.DBConfig) (*DB, error) {
 		Withdraws:    NewWithdrawsDB(gorm),
 		Transactions: NewTransactionsDB(gorm),
 		Tokens:       NewTokensDB(gorm),
+		Business:     NewBusinessDB(gorm),
 	}
 	return db, nil
 }
@@ -83,6 +85,7 @@ func (db *DB) Transaction(fn func(db *DB) error) error {
 			Withdraws:    NewWithdrawsDB(tx),
 			Transactions: NewTransactionsDB(tx),
 			Tokens:       NewTokensDB(tx),
+			Business:     NewBusinessDB(tx),
 		}
 		return fn(txDB)
 	})
