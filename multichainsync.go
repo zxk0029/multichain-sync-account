@@ -2,15 +2,15 @@ package multichain_transaction_syncs
 
 import (
 	"context"
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node"
+	"github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/dapplink-labs/multichain-transaction-syncs/config"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer"
-	"github.com/dapplink-labs/multichain-transaction-syncs/worker"
+	"github.com/dapplink-labs/multichain-sync-account/config"
+	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/dapplink-labs/multichain-sync-account/synchronizer"
+	"github.com/dapplink-labs/multichain-sync-account/worker"
 )
 
 type MultiChainSync struct {

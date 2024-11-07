@@ -31,7 +31,7 @@ Centralized Wallet Middleware is one of the DappLink One-click deployment of wal
 For prerequisites and detailed build instructions please read the [Installation](https://github.com/dapplink-labs/multichain-transaction-syncs/) instructions. Once the dependencies are installed, run:
 
 ```bash
-make multichain-transaction-syncs
+make multichain-sync
 ```
 
 Or check out the latest [release](https://github.com/dapplink-labs/multichain-transaction-syncs).

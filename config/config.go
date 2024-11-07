@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/dapplink-labs/multichain-transaction-syncs/flags"
+	"github.com/dapplink-labs/multichain-sync-account/flags"
 )
 
 const (

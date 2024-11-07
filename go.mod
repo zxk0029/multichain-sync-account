@@ -1,4 +1,4 @@
-module github.com/dapplink-labs/multichain-transaction-syncs
+module github.com/dapplink-labs/multichain-sync-account
 
 go 1.22.0
 

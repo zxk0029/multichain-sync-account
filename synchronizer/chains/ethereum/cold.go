@@ -1,9 +1,9 @@
 package ethereum
 
 import (
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/bigint"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
+	"github.com/dapplink-labs/multichain-sync-account/common/bigint"
+	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"

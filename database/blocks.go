@@ -5,7 +5,7 @@ import (
 	"gorm.io/gorm"
 	"math/big"
 
-	common2 "github.com/dapplink-labs/multichain-transaction-syncs/database/utils"
+	common2 "github.com/dapplink-labs/multichain-sync-account/database/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )

@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
-	retry2 "github.com/dapplink-labs/multichain-transaction-syncs/common/retry"
+	retry2 "github.com/dapplink-labs/multichain-sync-account/common/retry"
 	"os"
 	"path/filepath"
 
@@ -11,8 +11,8 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/dapplink-labs/multichain-transaction-syncs/config"
-	_ "github.com/dapplink-labs/multichain-transaction-syncs/database/utils/serializers"
+	"github.com/dapplink-labs/multichain-sync-account/config"
+	_ "github.com/dapplink-labs/multichain-sync-account/database/utils/serializers"
 )
 
 type DB struct {

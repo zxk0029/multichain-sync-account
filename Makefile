@@ -5,11 +5,11 @@ LDFLAGSSTRING +=-X main.GitCommit=$(GITCOMMIT)
 LDFLAGSSTRING +=-X main.GitDate=$(GITDATE)
 LDFLAGS := -ldflags "$(LDFLAGSSTRING)"
 
-multichain-transaction-syncs:
-	env GO111MODULE=on go build -v $(LDFLAGS) ./cmd/multichain-transaction-syncs
+multichain-sync:
+	env GO111MODULE=on go build -v $(LDFLAGS) ./cmd/multichain-sync
 
 clean:
-	rm multichain-transaction-syncs
+	rm multichain-sync
 
 test:
 	go test -v ./...
@@ -18,7 +18,7 @@ lint:
 	golangci-lint run ./...
 
 .PHONY: \
-	multichain-transaction-syncs \
+	multichain-sync \
 	bindings \
 	bindings-scc \
 	clean \

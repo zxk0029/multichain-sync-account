@@ -2,9 +2,9 @@ package ethereum
 
 import (
 	"context"
-	cache2 "github.com/dapplink-labs/multichain-transaction-syncs/common/cache"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
+	cache2 "github.com/dapplink-labs/multichain-sync-account/common/cache"
+	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum/log"
 )

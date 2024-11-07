@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	multichain_transaction_syncs "github.com/dapplink-labs/multichain-transaction-syncs"
+	multichain_transaction_syncs "github.com/dapplink-labs/multichain-sync-account"
 	"strings"
 
 	"github.com/urfave/cli/v2"
@@ -11,12 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/cliapp"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/opio"
-	"github.com/dapplink-labs/multichain-transaction-syncs/config"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
-	flags2 "github.com/dapplink-labs/multichain-transaction-syncs/flags"
-	"github.com/dapplink-labs/multichain-transaction-syncs/services"
+	"github.com/dapplink-labs/multichain-sync-account/common/cliapp"
+	"github.com/dapplink-labs/multichain-sync-account/common/opio"
+	"github.com/dapplink-labs/multichain-sync-account/config"
+	"github.com/dapplink-labs/multichain-sync-account/database"
+	flags2 "github.com/dapplink-labs/multichain-sync-account/flags"
+	"github.com/dapplink-labs/multichain-sync-account/services"
 )
 
 func runMultichainSync(ctx *cli.Context, shutdown context.CancelCauseFunc) (cliapp.Lifecycle, error) {

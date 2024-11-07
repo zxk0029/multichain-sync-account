@@ -1,7 +1,7 @@
 package wallet_chain_node
 
 import (
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
+	"github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 	"github.com/ethereum/go-ethereum/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	wallet2 "github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
+	wallet2 "github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 	"time"
 
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/tasks"
-	"github.com/dapplink-labs/multichain-transaction-syncs/config"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
+	"github.com/dapplink-labs/multichain-sync-account/common/tasks"
+	"github.com/dapplink-labs/multichain-sync-account/config"
+	"github.com/dapplink-labs/multichain-sync-account/database"
 	"github.com/ethereum/go-ethereum/log"
 )
 

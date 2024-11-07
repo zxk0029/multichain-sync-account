@@ -7,7 +7,7 @@
 package wallet
 
 import (
-	common "github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/common"
+	common "github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/common"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

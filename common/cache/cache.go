@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
+	"github.com/dapplink-labs/multichain-sync-account/database"
 	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum/log"
 	"sync"

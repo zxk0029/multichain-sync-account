@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/opio"
+	"github.com/dapplink-labs/multichain-sync-account/common/opio"
 	"github.com/urfave/cli/v2"
 )
 

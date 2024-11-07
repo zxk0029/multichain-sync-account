@@ -5,17 +5,18 @@ import (
 	"io"
 	"time"
 
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/cache"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/slices"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/strings"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database"
-	"github.com/dapplink-labs/multichain-transaction-syncs/database/dynamic"
-	"github.com/dapplink-labs/multichain-transaction-syncs/protobuf/dal-wallet-go"
 	"github.com/dgraph-io/ristretto"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-
 	"google.golang.org/grpc"
+
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/dapplink-labs/multichain-sync-account/common/cache"
+	"github.com/dapplink-labs/multichain-sync-account/common/slices"
+	"github.com/dapplink-labs/multichain-sync-account/common/strings"
+	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/dapplink-labs/multichain-sync-account/database/dynamic"
+	"github.com/dapplink-labs/multichain-sync-account/protobuf/dal-wallet-go"
 )
 
 type ScanService struct {

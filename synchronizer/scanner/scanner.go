@@ -3,8 +3,8 @@ package scanner
 import (
 	"context"
 	"fmt"
-	"github.com/dapplink-labs/multichain-transaction-syncs/common/bigint"
-	"github.com/dapplink-labs/multichain-transaction-syncs/synchronizer/wallet-chain-node/wallet"
+	"github.com/dapplink-labs/multichain-sync-account/common/bigint"
+	"github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
