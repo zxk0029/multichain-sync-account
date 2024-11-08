@@ -5,7 +5,6 @@ import (
 	"gorm.io/gorm"
 	"math/big"
 
-	common2 "github.com/dapplink-labs/multichain-sync-account/database/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -15,7 +14,6 @@ type Blocks struct {
 	ParentHash common.Hash `gorm:"serializer:bytes"`
 	Number     *big.Int    `gorm:"serializer:u256"`
 	Timestamp  uint64
-	RLPHeader  *common2.RLPHeader `gorm:"serializer:rlp;column:rlp_bytes"`
 }
 
 func BlockHeaderFromHeader(header *types.Header) Blocks {
@@ -24,7 +22,6 @@ func BlockHeaderFromHeader(header *types.Header) Blocks {
 		ParentHash: header.ParentHash,
 		Number:     header.Number,
 		Timestamp:  header.Time,
-		RLPHeader:  (*common2.RLPHeader)(header),
 	}
 }
 
@@ -35,7 +32,7 @@ type BlocksView interface {
 type BlocksDB interface {
 	BlocksView
 
-	StoreBlockss([]Blocks, uint64) error
+	StoreBlockss([]Blocks) error
 }
 
 type blocksDB struct {
@@ -46,19 +43,19 @@ func NewBlocksDB(db *gorm.DB) BlocksDB {
 	return &blocksDB{gorm: db}
 }
 
-func (db *blocksDB) StoreBlockss(headers []Blocks, blockLength uint64) error {
-	result := db.gorm.CreateInBatches(&headers, common2.BatchInsertSize)
+func (db *blocksDB) StoreBlockss(headers []Blocks) error {
+	result := db.gorm.CreateInBatches(&headers, len(headers))
 	return result.Error
 }
 
 func (db *blocksDB) LatestBlocks() (*Blocks, error) {
-	var l1Header Blocks
-	result := db.gorm.Order("number DESC").Take(&l1Header)
+	var header Blocks
+	result := db.gorm.Order("number DESC").Take(&header)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, result.Error
 	}
-	return &l1Header, nil
+	return &header, nil
 }

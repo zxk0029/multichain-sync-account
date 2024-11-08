@@ -10,13 +10,22 @@ BEGIN
     END IF;
 END $$;
 
+CREATE TABLE IF NOT EXISTS business(
+    guid           VARCHAR PRIMARY KEY,
+    business_uid   VARCHAR NOT NULL,
+    deposit_notify  VARCHAR NOT NULL,
+    withdraw_notify VARCHAR NOT NULL,
+    tx_flow_notify  VARCHAR NOT NULL,
+    timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
+);
+CREATE INDEX IF NOT EXISTS tokens_timestamp ON business (timestamp);
+CREATE INDEX IF NOT EXISTS business_uid ON business (business_uid);
 
 CREATE TABLE IF NOT EXISTS blocks (
     hash  VARCHAR PRIMARY KEY,
     parent_hash VARCHAR  NOT NULL UNIQUE,
     number UINT256 NOT NULL UNIQUE CHECK(number>0),
     timestamp INTEGER NOT NULL CHECK(timestamp>0),
-    rlp_bytes VARCHAR NOT NULL
 );
 CREATE INDEX IF NOT EXISTS blocks_number ON blocks(number);
 CREATE INDEX IF NOT EXISTS blocks_timestamp ON blocks(timestamp);
@@ -26,45 +35,33 @@ CREATE TABLE IF NOT EXISTS addresses (
     address VARCHAR UNIQUE NOT NULL,
     address_type SMALLINT NOT NULL DEFAULT 0,
     public_key VARCHAR NOT NULL,
-    business_uid VARCHAR NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp>0)
 );
 CREATE INDEX IF NOT EXISTS addresses_address ON addresses(address);
 CREATE INDEX IF NOT EXISTS addresses_timestamp ON addresses(timestamp);
 
+CREATE TABLE IF NOT EXISTS tokens(
+    guid           VARCHAR PRIMARY KEY,
+    token_address  VARCHAR  NOT NULL,
+    decimals       SMALLINT NOT NULL DEFAULT 18,
+    token_name     VARCHAR  NOT NULL,
+    collect_amount UINT256 NOT NULL,
+    cold_amount    UINT256 NOT NULL,
+    timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
+);
+CREATE INDEX IF NOT EXISTS tokens_timestamp ON tokens (timestamp);
+CREATE INDEX IF NOT EXISTS tokens_token_address ON tokens (token_address);
 
 CREATE TABLE IF NOT EXISTS balances (
-    guid  VARCHAR PRIMARY KEY,
-    address  VARCHAR NOT NULL,
-    address_type SMALLINT NOT NULL DEFAULT 0,
+    guid          VARCHAR PRIMARY KEY,
+    address       VARCHAR NOT NULL,
     token_address VARCHAR NOT NULL,
-    balance  UINT256 NOT NULL CHECK(balance>=0),
+    balance       UINT256 NOT NULL CHECK(balance>=0),
     lock_balance  UINT256 NOT NULL,
-    timestamp INTEGER NOT NULL CHECK(timestamp>0)
+    timestamp     INTEGER NOT NULL CHECK(timestamp>0)
 );
 CREATE INDEX IF NOT EXISTS balances_address ON balances(address);
 CREATE INDEX IF NOT EXISTS balances_timestamp ON balances(timestamp);
-
-
-
-CREATE TABLE IF NOT EXISTS transactions (
-    guid VARCHAR PRIMARY KEY,
-    block_hash VARCHAR NOT NULL,
-    block_number UINT256 NOT NULL CHECK(block_number>0),
-    hash VARCHAR NOT NULL,
-    from_address VARCHAR NOT NULL,
-    to_address VARCHAR NOT NULL,
-    token_address VARCHAR NOT NULL,
-    fee UINT256 NOT NULL,
-    amount UINT256 NOT NULL,
-    status SMALLINT NOT NULL DEFAULT 0,
-    transaction_index UINT256 NOT NULL,
-    tx_type SMALLINT NOT NULL DEFAULT 0,
-    timestamp INTEGER NOT NULL CHECK(timestamp>0)
-);
-CREATE INDEX IF NOT EXISTS transactions_hash ON transactions(hash);
-CREATE INDEX IF NOT EXISTS transactions_timestamp ON transactions(timestamp);
-
 
 CREATE TABLE IF NOT EXISTS deposits (
     guid  VARCHAR PRIMARY KEY,
@@ -74,15 +71,15 @@ CREATE TABLE IF NOT EXISTS deposits (
     from_address VARCHAR NOT NULL,
     to_address VARCHAR NOT NULL,
     token_address VARCHAR NOT NULL,
+    token_id VARCHAR NOT NULL,
+    token_meta VARCHAR NOT NULL,
     fee UINT256 NOT NULL,
     amount UINT256 NOT NULL,
     status SMALLINT NOT NULL DEFAULT 0,
-    transaction_index UINT256 NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp>0)
 );
 CREATE INDEX IF NOT EXISTS deposits_hash ON deposits(hash);
 CREATE INDEX IF NOT EXISTS deposits_timestamp ON deposits(timestamp);
-
 
 CREATE TABLE IF NOT EXISTS withdraws (
      guid  VARCHAR PRIMARY KEY,
@@ -95,31 +92,28 @@ CREATE TABLE IF NOT EXISTS withdraws (
      fee UINT256 NOT NULL,
      amount UINT256 NOT NULL,
      status SMALLINT NOT NULL DEFAULT 0,
-     transaction_index UINT256 NOT NULL,
      timestamp INTEGER NOT NULL CHECK(timestamp>0),
      tx_sign_hex VARCHAR NOT NULL
 );
 CREATE INDEX IF NOT EXISTS withdraws_hash ON withdraws(hash);
 CREATE INDEX IF NOT EXISTS withdraws_timestamp ON withdraws(timestamp);
 
-
-CREATE TABLE IF NOT EXISTS tokens
-(
-    guid           VARCHAR PRIMARY KEY,
-    token_address  VARCHAR  NOT NULL,
-    decimals           SMALLINT NOT NULL DEFAULT 18,
-    token_name     VARCHAR  NOT NULL,
-    collection_limit UINT256 NOT NULL,
-    timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
+CREATE TABLE IF NOT EXISTS transactions (
+    guid VARCHAR PRIMARY KEY,
+    block_hash VARCHAR NOT NULL,
+    block_number UINT256 NOT NULL CHECK(block_number>0),
+    hash VARCHAR NOT NULL,
+    from_address VARCHAR NOT NULL,
+    to_address VARCHAR NOT NULL,
+    token_address VARCHAR NOT NULL,
+    token_id VARCHAR NOT NULL,
+    token_meta VARCHAR NOT NULL,
+    fee UINT256 NOT NULL,
+    amount UINT256 NOT NULL,
+    status SMALLINT NOT NULL DEFAULT 0,
+    tx_type SMALLINT NOT NULL DEFAULT 0,
+    timestamp INTEGER NOT NULL CHECK(timestamp>0)
 );
-CREATE INDEX IF NOT EXISTS tokens_timestamp ON tokens (timestamp);
-CREATE INDEX IF NOT EXISTS tokens_token_address ON tokens (token_address);
+CREATE INDEX IF NOT EXISTS transactions_hash ON transactions(hash);
+CREATE INDEX IF NOT EXISTS transactions_timestamp ON transactions(timestamp);
 
-CREATE TABLE IF NOT EXISTS business
-(
-    guid           VARCHAR PRIMARY KEY,
-    business_uid VARCHAR NOT NULL,
-    timestamp      INTEGER  NOT NULL CHECK (timestamp > 0)
-);
-CREATE INDEX IF NOT EXISTS tokens_timestamp ON business (timestamp);
-CREATE INDEX IF NOT EXISTS business_uid ON business (business_uid);

@@ -14,19 +14,20 @@ import (
 )
 
 type Withdraws struct {
-	GUID             uuid.UUID      `gorm:"primaryKey" json:"guid"`
-	BlockHash        common.Hash    `gorm:"column:block_hash;serializer:bytes"  db:"block_hash" json:"block_hash"`
-	BlockNumber      *big.Int       `gorm:"serializer:u256;column:block_number" db:"block_number" json:"BlockNumber" form:"block_number"`
-	Hash             common.Hash    `gorm:"column:hash;serializer:bytes"  db:"hash" json:"hash"`
-	FromAddress      common.Address `json:"from_address" gorm:"serializer:bytes;column:from_address"`
-	ToAddress        common.Address `json:"to_address" gorm:"serializer:bytes;column:to_address"`
-	TokenAddress     common.Address `json:"token_address" gorm:"serializer:bytes;column:token_address"`
-	Fee              *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
-	Amount           *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
-	Status           uint8          `json:"status"` // 0:提现未签名发送, 1:提现已经发送到区块链网络；2:提现已上链；3:提现在钱包层已完成；4:提现已通知业务；5:提现成功
-	TransactionIndex *big.Int       `gorm:"serializer:u256;column:transaction_index" db:"transaction_index" json:"TransactionIndex" form:"transaction_index"`
-	TxSignHex        string         `json:"tx_sign_hex" gorm:"column:tx_sign_hex"`
-	Timestamp        uint64
+	GUID         uuid.UUID      `gorm:"primaryKey" json:"guid"`
+	BlockHash    common.Hash    `gorm:"column:block_hash;serializer:bytes"  db:"block_hash" json:"block_hash"`
+	BlockNumber  *big.Int       `gorm:"serializer:u256;column:block_number" db:"block_number" json:"BlockNumber" form:"block_number"`
+	Hash         common.Hash    `gorm:"column:hash;serializer:bytes"  db:"hash" json:"hash"`
+	FromAddress  common.Address `json:"from_address" gorm:"serializer:bytes;column:from_address"`
+	ToAddress    common.Address `json:"to_address" gorm:"serializer:bytes;column:to_address"`
+	TokenAddress common.Address `json:"token_address" gorm:"serializer:bytes;column:token_address"`
+	TokenId      string         `json:"token_id" gorm:"column:token_id"`
+	TokenMeta    string         `json:"token_meta" gorm:"column:token_meta"`
+	Fee          *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
+	Amount       *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
+	Status       uint8          `json:"status"` // 0:提现未签名发送, 1:提现已经发送到区块链网络；2:提现已上链；3:提现在钱包层已完成；4:提现已通知业务；5:提现成功
+	TxSignHex    string         `json:"tx_sign_hex" gorm:"column:tx_sign_hex"`
+	Timestamp    uint64
 }
 
 type WithdrawsView interface {
@@ -92,19 +93,18 @@ func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, hash common.Hash) 
 
 func (db *withdrawsDB) SubmitWithdrawFromBusiness(requestId string, fromAddress common.Address, toAddress common.Address, TokenAddress common.Address, amount *big.Int) error {
 	withdrawS := Withdraws{
-		GUID:             uuid.New(),
-		BlockHash:        common.Hash{},
-		BlockNumber:      big.NewInt(1),
-		Hash:             common.Hash{},
-		FromAddress:      fromAddress,
-		ToAddress:        toAddress,
-		TokenAddress:     TokenAddress,
-		Fee:              big.NewInt(1),
-		Amount:           amount,
-		Status:           0,
-		TransactionIndex: big.NewInt(time.Now().Unix()),
-		TxSignHex:        "",
-		Timestamp:        uint64(time.Now().Unix()),
+		GUID:         uuid.New(),
+		BlockHash:    common.Hash{},
+		BlockNumber:  big.NewInt(1),
+		Hash:         common.Hash{},
+		FromAddress:  fromAddress,
+		ToAddress:    toAddress,
+		TokenAddress: TokenAddress,
+		Fee:          big.NewInt(1),
+		Amount:       amount,
+		Status:       0,
+		TxSignHex:    "",
+		Timestamp:    uint64(time.Now().Unix()),
 	}
 	errC := db.gorm.Table("withdraws_" + requestId).Create(withdrawS).Error
 	if errC != nil {

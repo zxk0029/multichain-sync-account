@@ -1,21 +1,30 @@
 package database
 
 import (
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Business struct {
-	GUID        uuid.UUID `gorm:"primaryKey" json:"guid"`
-	BusinessUid string    `json:"business_uid"`
-	Timestamp   uint64
+	GUID           uuid.UUID `gorm:"primaryKey" json:"guid"`
+	BusinessUid    string    `json:"business_uid"`
+	DepositNotify  string    `json:"deposit_notify"`
+	WithdrawNotify string    `json:"withdraw_notify"`
+	TxFlowNotify   string    `json:"tx_flow_notify"`
+	Timestamp      uint64
+}
+
+type BusinessView interface {
+	QueryBusinessByUuid(string) (*Business, error)
 }
 
 type BusinessDB interface {
-	CreateBusiness(string) error
-	QueryBusinessAll() ([]*Business, error)
+	BusinessView
+
+	StoreBusiness(*Business) error
 }
 
 type businessDB struct {
@@ -26,18 +35,14 @@ func NewBusinessDB(db *gorm.DB) BusinessDB {
 	return &businessDB{gorm: db}
 }
 
-func (db *businessDB) CreateBusiness(requestId string) error {
-	result := db.gorm.Table("business").Create(&Business{BusinessUid: requestId, Timestamp: uint64(time.Now().Unix())})
-	if result.Error != nil {
-		log.Error("create business batch fail", "Err", result.Error)
-		return result.Error
-	}
-	return nil
+func (db *businessDB) StoreBusiness(business *Business) error {
+	result := db.gorm.Create(business)
+	return result.Error
 }
 
-func (db *businessDB) QueryBusinessAll() ([]*Business, error) {
-	var business []*Business
-	result := db.gorm.Table("business").Find(&business)
+func (db *businessDB) QueryBusinessByUuid(businessUid string) (*Business, error) {
+	var business *Business
+	result := db.gorm.Table("business").Where("business_uid", businessUid).First(&business)
 	if result.Error != nil {
 		log.Error("query business all fail", "Err", result.Error)
 		return nil, result.Error

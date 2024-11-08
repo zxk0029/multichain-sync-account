@@ -14,13 +14,15 @@ clean:
 test:
 	go test -v ./...
 
+protogo:
+	sh ./sh/go_compile.sh
+
 lint:
 	golangci-lint run ./...
 
 .PHONY: \
 	multichain-sync \
-	bindings \
-	bindings-scc \
 	clean \
 	test \
+	protogo \
 	lint

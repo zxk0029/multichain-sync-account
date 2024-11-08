@@ -37,7 +37,7 @@ func runRpc(ctx *cli.Context, shutdown context.CancelCauseFunc) (cliapp.Lifecycl
 		log.Error("failed to load config", "err", err)
 		return nil, err
 	}
-	grpcServerCfg := &services.RpcServerConfig{
+	grpcServerCfg := &services.BusinessMiddleConfig{
 		GrpcHostname: cfg.RpcServer.Host,
 		GrpcPort:     cfg.RpcServer.Port,
 	}
@@ -46,7 +46,7 @@ func runRpc(ctx *cli.Context, shutdown context.CancelCauseFunc) (cliapp.Lifecycl
 		log.Error("failed to connect to database", "err", err)
 		return nil, err
 	}
-	return services.NewRpcServer(db, grpcServerCfg)
+	return services.NewBusinessMiddleWireServices(db, grpcServerCfg, nil)
 }
 
 func runMigrations(ctx *cli.Context) error {

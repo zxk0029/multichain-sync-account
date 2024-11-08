@@ -11,7 +11,6 @@ import (
 	"github.com/dapplink-labs/multichain-sync-account/common/tasks"
 	"github.com/dapplink-labs/multichain-sync-account/config"
 	"github.com/dapplink-labs/multichain-sync-account/database"
-	"github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 )
 
 var (
@@ -25,7 +24,6 @@ var (
 
 type CollectionCold struct {
 	db             *database.DB
-	rpcClient      wallet.WalletServiceClient
 	chainNodeConf  *config.ChainNodeConfig
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
@@ -33,13 +31,12 @@ type CollectionCold struct {
 	ticker         *time.Ticker
 }
 
-func NewCollectionCold(cfg *config.Config, db *database.DB, rpcClient wallet.WalletServiceClient, shutdown context.CancelCauseFunc) (*CollectionCold, error) {
+func NewCollectionCold(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*CollectionCold, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
 
 	return &CollectionCold{
 		db:             db,
 		chainNodeConf:  &cfg.ChainNode,
-		rpcClient:      rpcClient,
 		resourceCtx:    resCtx,
 		resourceCancel: resCancel,
 		ticker:         time.NewTicker(5 * time.Second),
@@ -62,7 +59,6 @@ func (cc *CollectionCold) Close() error {
 
 func (cc *CollectionCold) Start() error {
 	log.Info("Starting collection and cold tasks...")
-
 	cc.tasks.Go(func() error {
 		for {
 			select {

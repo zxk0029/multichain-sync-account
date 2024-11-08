@@ -7,54 +7,90 @@ enum ReturnCode{
   SUCCESS = 1;
 }
 
-// 样板Response
-message BoilerplateResponse{
+message PublicKey{
+  uint32 type = 1;
+  string public_key = 2;
+}
+
+message Address{
+  uint32 type = 1;
+  string address = 2;
+}
+
+message Token{
+  uint32 decimals = 1;
+  string address = 2;
+  string token_name = 3;
+  string collect_amount = 4;
+  string cold_amount = 5;
+}
+
+message BusinessRegisterRequest{
+  string  consumer_token = 1;
+  string  request_id = 2;
+  string  deposit_notify = 3;
+  string  withdraw_notify =4;
+  string  tx_flow_notify = 5;
+}
+
+message BusinessRegisterResponse{
   ReturnCode Code = 1;
   string Msg = 2;
 }
 
-// 注册扫链服务参数
-message SignUpScanServiceRequest{
-  // 用户唯一标识
-  string RequestId = 1;
+message ExportAddressesRequest{
+  string  consumer_token = 1;
+  string request_id = 2;
+  repeated PublicKey public_keys = 3;
 }
 
-// 地址类型
-message Address{
-  //0:用户地址；1:热钱包地址(归集地址)；2:冷钱包地址
-  uint32 AddressType = 1;
-  // 地址
-  string Address = 2;
+message ExportAddressesResponse {
+  ReturnCode Code = 1;
+  string msg = 2;
+  repeated Address addresses = 3;
 }
 
-// 设置扫链地址
-message SetScanAddressRequest{
-  string RequestId = 1;
-  repeated Address AddressList = 2;
+message UnSignTransactionRequest {
+  string consumer_token = 1;
+  string request_id = 2;
+  string chain = 3;
+  string base64_tx = 4;
 }
 
-message RefreshCacheRequest{
-  string RequestId = 1;
+message UnSignTransactionResponse {
+  ReturnCode code = 1;
+  string msg = 2;
+  string un_sign_tx = 3;
 }
 
-message Token{
-  uint32 Decimals = 1;
-  string Address = 2;
-  string TokenName = 3;
-  uint64 CollectionLimit = 4;
+message SignedTransactionRequest {
+  string consumer_token = 1;
+  string request_id = 2;
+  string chain = 3;
+  string base64_tx = 4;
+  string signature = 5;
+}
+
+message SignedTransactionResponse {
+  ReturnCode code = 1;
+  string msg = 2;
+  string signed_tx = 3;
 }
 
 message SetTokenAddressRequest{
-  repeated Token TokenList = 1;
+  ReturnCode code = 1;
+  string request_id = 2;
+  repeated Token token_list = 3;
 }
 
-service ScanChain {
-  // 注册扫链服务
-  rpc SignUpScanService(SignUpScanServiceRequest) returns (BoilerplateResponse) {}
-  // 设置扫链地址
-  rpc SetScanAddress(stream SetScanAddressRequest) returns (BoilerplateResponse) {}
-  // 刷新缓存
-  rpc RefreshCache(RefreshCacheRequest) returns (BoilerplateResponse) {}
-  // 设置代币地址
-  rpc SetTokenAddress(stream SetTokenAddressRequest) returns (BoilerplateResponse) {}
+message SetTokenAddressResponse {
+   ReturnCode code = 1;
+}
+
+service BusinessMiddleWireServices {
+  rpc businessRegister(BusinessRegisterRequest) returns (BusinessRegisterResponse) {}
+  rpc exportAddressesByPublicKeys(ExportAddressesRequest) returns (ExportAddressesResponse) {}
+  rpc createUnSignTransaction(UnSignTransactionRequest) returns(UnSignTransactionResponse){}
+  rpc buildSignedTransaction(SignedTransactionRequest) returns(SignedTransactionResponse){}
+  rpc setTokenAddress(SetTokenAddressRequest) returns (SetTokenAddressResponse) {}
 }

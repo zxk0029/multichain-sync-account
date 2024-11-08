@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	retry2 "github.com/dapplink-labs/multichain-sync-account/common/retry"
 	"os"
 	"path/filepath"
 
@@ -11,6 +10,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	retry2 "github.com/dapplink-labs/multichain-sync-account/common/retry"
 	"github.com/dapplink-labs/multichain-sync-account/config"
 	_ "github.com/dapplink-labs/multichain-sync-account/database/utils/serializers"
 )

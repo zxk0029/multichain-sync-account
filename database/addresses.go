@@ -12,7 +12,6 @@ import (
 
 type Addresses struct {
 	GUID        uuid.UUID      `gorm:"primaryKey" json:"guid"`
-	BusinessUid string         `json:"business_uid"`
 	Address     common.Address `json:"address" gorm:"serializer:bytes"`
 	AddressType uint8          `json:"address_type"` //0:用户地址；1:热钱包地址(归集地址)；2:冷钱包地址
 	PublicKey   string         `json:"public_key"`
@@ -29,7 +28,7 @@ type AddressesView interface {
 type AddressesDB interface {
 	AddressesView
 
-	StoreAddresses(string, []Addresses, uint64) error
+	StoreAddresses(string, []Addresses) error
 }
 
 type addressesDB struct {
@@ -52,9 +51,9 @@ func NewAddressesDB(db *gorm.DB) AddressesDB {
 	return &addressesDB{gorm: db}
 }
 
-// StoreAddresses 存储地址
-func (db *addressesDB) StoreAddresses(requestId string, addressList []Addresses, addressLength uint64) error {
-	result := db.gorm.Table("addresses_"+requestId).CreateInBatches(&addressList, int(addressLength))
+// StoreAddresses store address
+func (db *addressesDB) StoreAddresses(requestId string, addressList []Addresses) error {
+	result := db.gorm.Table("addresses_"+requestId).CreateInBatches(&addressList, len(addressList))
 	return result.Error
 }
 

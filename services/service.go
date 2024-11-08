@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"github.com/dapplink-labs/multichain-sync-account/rpcclient"
 	"net"
 	"sync/atomic"
 
@@ -17,63 +18,57 @@ import (
 
 const MaxRecvMessageSize = 1024 * 1024 * 300
 
-type RpcServerConfig struct {
+type BusinessMiddleConfig struct {
 	GrpcHostname string
 	GrpcPort     int
 }
 
-type RpcServer struct {
-	*RpcServerConfig
-	db *database.DB
-
-	// wallet.UnimplementedWalletServiceServer
-	stopped atomic.Bool
+type BusinessMiddleWireServices struct {
+	*BusinessMiddleConfig
+	accountClient *rpcclient.WalletChainAccountClient
+	db            *database.DB
+	stopped       atomic.Bool
 }
 
-func (s *RpcServer) Stop(ctx context.Context) error {
-	s.stopped.Store(true)
+func (bws *BusinessMiddleWireServices) Stop(ctx context.Context) error {
+	bws.stopped.Store(true)
 	return nil
 }
 
-func (s *RpcServer) Stopped() bool {
-	return s.stopped.Load()
+func (bws *BusinessMiddleWireServices) Stopped() bool {
+	return bws.stopped.Load()
 }
 
-func NewRpcServer(db *database.DB, config *RpcServerConfig) (*RpcServer, error) {
-	return &RpcServer{
-		RpcServerConfig: config,
-		db:              db,
+func NewBusinessMiddleWireServices(db *database.DB, config *BusinessMiddleConfig, accountClient *rpcclient.WalletChainAccountClient) (*BusinessMiddleWireServices, error) {
+	return &BusinessMiddleWireServices{
+		BusinessMiddleConfig: config,
+		accountClient:        accountClient,
+		db:                   db,
 	}, nil
 }
 
-func (s *RpcServer) Start(ctx context.Context) error {
-	go func(s *RpcServer) {
-		addr := fmt.Sprintf("%s:%d", s.GrpcHostname, s.GrpcPort)
+func (bws *BusinessMiddleWireServices) Start(ctx context.Context) error {
+	go func(bws *BusinessMiddleWireServices) {
+		addr := fmt.Sprintf("%s:%d", bws.GrpcHostname, bws.GrpcPort)
 		log.Info("start rpc server", "addr", addr)
 		listener, err := net.Listen("tcp", addr)
 		if err != nil {
 			log.Error("Could not start tcp listener. ")
 		}
-
-		// 注册gRPC服务
 		gs := grpc.NewServer(
-			// 用于设置gRPC客户端或服务器能够接收的最大消息大小
 			grpc.MaxRecvMsgSize(MaxRecvMessageSize),
-			// 用于设置gRPC服务器的拦截器
 			grpc.ChainUnaryInterceptor(
 				nil,
 			),
 		)
-		// 为gRPC服务器启用了反射功能，使客户端能够动态查询服务器提供的服务和接口。
 		reflection.Register(gs)
 
-		// 注册接口服务
-		dal_wallet_go.RegisterScanChainServer(gs, NewScanService(s.db))
+		dal_wallet_go.RegisterBusinessMiddleWireServicesServer(gs, bws)
 
-		log.Info("Grpc info", "port", s.GrpcPort, "address", listener.Addr())
+		log.Info("Grpc info", "port", bws.GrpcPort, "address", listener.Addr())
 		if err := gs.Serve(listener); err != nil {
 			log.Error("Could not GRPC server")
 		}
-	}(s)
+	}(bws)
 	return nil
 }

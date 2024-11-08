@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	wallet2 "github.com/dapplink-labs/multichain-sync-account/synchronizer/wallet-chain-node/wallet"
 	"time"
 
 	"github.com/dapplink-labs/multichain-sync-account/common/tasks"
@@ -23,7 +22,7 @@ type TxManager struct {
 	ticker *time.Ticker
 }
 
-func NewTxManager(cfg *config.Config, db *database.DB, rpcClient wallet2.WalletServiceClient, shutdown context.CancelCauseFunc) (*TxManager, error) {
+func NewTxManager(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*TxManager, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &TxManager{
 		db:             db,
