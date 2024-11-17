@@ -50,28 +50,36 @@ message ExportAddressesResponse {
   repeated Address addresses = 3;
 }
 
-message UnSignTransactionRequest {
+message UnSignWithdrawTransactionRequest {
   string consumer_token = 1;
   string request_id = 2;
-  string chain = 3;
-  string base64_tx = 4;
+  string chain_id =3;
+  string chain = 4;
+  string from = 5;
+  string to = 6;
+  string value = 7;
+  string contract_address = 8;
+  string token_id = 9;
+  string token_meta = 10;
 }
 
-message UnSignTransactionResponse {
+message UnSignWithdrawTransactionResponse {
   ReturnCode code = 1;
   string msg = 2;
-  string un_sign_tx = 3;
+  string transaction_id = 4;
+  string un_sign_tx = 5;
 }
 
-message SignedTransactionRequest {
+message SignedWithdrawTransactionRequest {
   string consumer_token = 1;
   string request_id = 2;
   string chain = 3;
-  string base64_tx = 4;
-  string signature = 5;
+  string chain_id =4;
+  string transaction_id = 5;
+  string signature = 6;
 }
 
-message SignedTransactionResponse {
+message SignedWithdrawTransactionResponse {
   ReturnCode code = 1;
   string msg = 2;
   string signed_tx = 3;
@@ -85,12 +93,13 @@ message SetTokenAddressRequest{
 
 message SetTokenAddressResponse {
    ReturnCode code = 1;
+  string msg = 2;
 }
 
 service BusinessMiddleWireServices {
   rpc businessRegister(BusinessRegisterRequest) returns (BusinessRegisterResponse) {}
   rpc exportAddressesByPublicKeys(ExportAddressesRequest) returns (ExportAddressesResponse) {}
-  rpc createUnSignTransaction(UnSignTransactionRequest) returns(UnSignTransactionResponse){}
-  rpc buildSignedTransaction(SignedTransactionRequest) returns(SignedTransactionResponse){}
+  rpc createUnSignTransaction(UnSignWithdrawTransactionRequest) returns(UnSignWithdrawTransactionResponse){}
+  rpc buildSignedTransaction(SignedWithdrawTransactionRequest) returns(SignedWithdrawTransactionResponse){}
   rpc setTokenAddress(SetTokenAddressRequest) returns (SetTokenAddressResponse) {}
 }
