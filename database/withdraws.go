@@ -42,7 +42,7 @@ type WithdrawsDB interface {
 	WithdrawsView
 
 	StoreWithdraw(string, *Withdraws) error
-	UpdateTransaction(requestId string, signedTx string, status uint8) error
+	UpdateWithdrawTx(requestId string, transactionId string, signedTx string, fee *big.Int, status uint8) error
 	MarkWithdrawsToSend(requestId string, withdrawsList []Withdraws) error
 }
 
@@ -126,24 +126,26 @@ func (db *withdrawsDB) SubmitWithdrawFromBusiness(requestId string, fromAddress 
 	return nil
 }
 
-func (db *withdrawsDB) UpdateTransaction(requestId string, signedTx string, status uint8) error {
-	for i := 0; i < len(withdrawsList); i++ {
-		var withdrawsSingle = Withdraws{}
+func (db *withdrawsDB) UpdateWithdrawTx(requestId string, transactionId string, signedTx string, fee *big.Int, status uint8) error {
+	var withdrawsSingle = Withdraws{}
 
-		result := db.gorm.Table("withdraws_" + requestId).Where(&Transactions{Hash: withdrawsList[i].Hash}).Take(&withdrawsSingle)
-		if result.Error != nil {
-			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				return nil
-			}
-			return result.Error
+	result := db.gorm.Table("withdraws_"+requestId).Where("guid", transactionId).Take(&withdrawsSingle)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil
 		}
+		return result.Error
+	}
+	if signedTx != "" {
 		withdrawsSingle.TxSignHex = signedTx
-		withdrawsSingle.Status = status
-		withdrawsSingle.Fee = withdrawsList[i].Fee
-		err := db.gorm.Table("withdraws_" + requestId).Save(&withdrawsSingle).Error
-		if err != nil {
-			return err
-		}
+	}
+	withdrawsSingle.Status = status
+	if fee != nil {
+		withdrawsSingle.Fee = fee
+	}
+	err := db.gorm.Table("withdraws_" + requestId).Save(&withdrawsSingle).Error
+	if err != nil {
+		return err
 	}
 	return nil
 }

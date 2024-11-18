@@ -34,19 +34,13 @@ var (
 		Required: true,
 	}
 
-	TradingModelFlag = &cli.StringFlag{
-		Name:     "trading-model",
-		Usage:    "trading model",
-		EnvVars:  prefixEnvVars("TRADING_MODEL"),
-		Required: true,
-	}
-
 	RpcUrlFlag = &cli.StringFlag{
 		Name:     "rpc-url",
 		Usage:    "HTTP provider URL for chain",
 		EnvVars:  prefixEnvVars("RPC_RUL"),
 		Required: true,
 	}
+
 	StartingHeightFlag = &cli.UintFlag{
 		Name:    "starting-height",
 		Usage:   "The starting height of chain",
@@ -92,6 +86,13 @@ var (
 		Value:    8987,
 		Required: true,
 	}
+	ChainAccountRpcFlag = &cli.StringFlag{
+		Name:     "chain-account-rpc",
+		Usage:    "The host of chain account rpc",
+		EnvVars:  prefixEnvVars("CHAIN_ACCOUNT_RPC"),
+		Required: true,
+	}
+
 	// MetricsHostFlag Metrics flags
 	MetricsHostFlag = &cli.StringFlag{
 		Name:     "metrics-host",
@@ -209,7 +210,6 @@ var requireFlags = []cli.Flag{
 	RpcUrlFlag,
 	ChainIdFlag,
 	ChainNameFlag,
-	TradingModelFlag,
 	StartingHeightFlag,
 	ConfirmationsFlag,
 	SynchronizerIntervalFlag,
@@ -217,6 +217,7 @@ var requireFlags = []cli.Flag{
 	BlocksStepFlag,
 	RpcHostFlag,
 	RpcPortFlag,
+	ChainAccountRpcFlag,
 	MetricsPortFlag,
 	MetricsHostFlag,
 	SlaveDbEnableFlag,

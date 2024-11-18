@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/dapplink-labs/multichain-sync-account/database/dynamic"
 	"math/big"
 	"strconv"
 	"time"
@@ -50,9 +51,10 @@ func (bws *BusinessMiddleWireServices) BusinessRegister(ctx context.Context, req
 		log.Error("store business fail", "err", err)
 		return &dal_wallet_go.BusinessRegisterResponse{
 			Code: dal_wallet_go.ReturnCode_ERROR,
-			Msg:  "invalid params",
+			Msg:  "store db fail",
 		}, nil
 	}
+	dynamic.CreateTableFromTemplate(request.RequestId, bws.db)
 	return &dal_wallet_go.BusinessRegisterResponse{
 		Code: dal_wallet_go.ReturnCode_SUCCESS,
 		Msg:  "config business success",
@@ -62,6 +64,7 @@ func (bws *BusinessMiddleWireServices) BusinessRegister(ctx context.Context, req
 func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.Context, request *dal_wallet_go.ExportAddressesRequest) (*dal_wallet_go.ExportAddressesResponse, error) {
 	var retAddressess []*dal_wallet_go.Address
 	var dbAddresses []database.Addresses
+
 	for _, value := range request.PublicKeys {
 		address := bws.accountClient.ExportAddressByPubKey(strconv.Itoa(int(value.Type)), value.PublicKey)
 		item := &dal_wallet_go.Address{
@@ -221,7 +224,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		log.Error("create un sign transaction fail", "err", err)
 		return nil, err
 	}
-	err = bws.db.Withdraws.UpdateTransaction(request.RequestId, returnTx.SignedTx, 1)
+	err = bws.db.Withdraws.UpdateWithdrawTx(request.RequestId, request.TransactionId, returnTx.SignedTx, nil, 1)
 	if err != nil {
 		log.Error("update signed tx to db fail", "err", err)
 		return nil, err

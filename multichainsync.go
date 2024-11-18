@@ -13,9 +13,11 @@ import (
 )
 
 type MultiChainSync struct {
-	txManager      *worker.TxManager
-	synchronizer   *synchronizer.Synchronizer
-	collectionCold *synchronizer.CollectionCold
+	Synchronizer *synchronizer.Synchronizer
+	Deposit      *worker.Deposit
+	Withdraw     *worker.Withdraw
+	Collection   *worker.Collection
+	ToCold       *worker.ToCold
 
 	shutdown context.CancelCauseFunc
 	stopped  atomic.Bool
@@ -27,26 +29,42 @@ func NewMultiChainSync(ctx context.Context, cfg *config.Config, shutdown context
 		log.Error("init database fail", err)
 		return nil, err
 	}
-	txManager, _ := worker.NewTxManager(cfg, db, shutdown)
-	_synchronizer, _ := synchronizer.NewSynchronizer(cfg, db, shutdown)
-	collectionCold, _ := synchronizer.NewCollectionCold(cfg, db, shutdown)
+	syncer, _ := synchronizer.NewSynchronizer(cfg, db, shutdown)
+
+	deposit, _ := worker.NewDeposit(cfg, db, shutdown)
+	withdraw, _ := worker.NewWithdraw(cfg, db, shutdown)
+	collection, _ := worker.NewCollection(cfg, db, shutdown)
+	toCold, _ := worker.NewToCold(cfg, db, shutdown)
 
 	out := &MultiChainSync{
-		txManager:      txManager,
-		synchronizer:   _synchronizer,
-		collectionCold: collectionCold,
-		shutdown:       shutdown,
+		Synchronizer: syncer,
+		Deposit:      deposit,
+		Withdraw:     withdraw,
+		Collection:   collection,
+		ToCold:       toCold,
+		shutdown:     shutdown,
 	}
-
 	return out, nil
 }
 
 func (mcs *MultiChainSync) Start(ctx context.Context) error {
-	err := mcs.txManager.Start()
+	err := mcs.Synchronizer.Start()
 	if err != nil {
 		return err
 	}
-	err = mcs.synchronizer.Start()
+	err = mcs.Deposit.Start()
+	if err != nil {
+		return err
+	}
+	err = mcs.Withdraw.Start()
+	if err != nil {
+		return err
+	}
+	err = mcs.Collection.Start()
+	if err != nil {
+		return err
+	}
+	err = mcs.ToCold.Start()
 	if err != nil {
 		return err
 	}
@@ -54,12 +72,23 @@ func (mcs *MultiChainSync) Start(ctx context.Context) error {
 }
 
 func (mcs *MultiChainSync) Stop(ctx context.Context) error {
-	err := mcs.txManager.Close()
+	err := mcs.Synchronizer.Close()
 	if err != nil {
 		return err
 	}
-	err = mcs.synchronizer.Close()
-
+	err = mcs.Deposit.Close()
+	if err != nil {
+		return err
+	}
+	err = mcs.Withdraw.Close()
+	if err != nil {
+		return err
+	}
+	err = mcs.Collection.Close()
+	if err != nil {
+		return err
+	}
+	err = mcs.ToCold.Close()
 	if err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ func NewBusinessDB(db *gorm.DB) BusinessDB {
 }
 
 func (db *businessDB) StoreBusiness(business *Business) error {
-	result := db.gorm.Create(business)
+	result := db.gorm.Table("business").Create(business)
 	return result.Error
 }
 

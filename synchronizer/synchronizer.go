@@ -4,28 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/dapplink-labs/multichain-sync-account/common/tasks"
 	"github.com/dapplink-labs/multichain-sync-account/config"
 	"github.com/dapplink-labs/multichain-sync-account/database"
 )
 
-// GetStartHeight 获取开始扫描的区块高度
 func GetStartHeight(cfg *config.Config, db *database.DB) *big.Int {
 	var lastScannedBlock *big.Int
-	// 获取DB里最新块高
 	latestHeader, err := db.Blocks.LatestBlocks()
 	if err != nil {
 		log.Error("get latest block from database fail: ", "error", err)
 	}
 	if latestHeader != nil {
-		// 数据库最新块高不为空那么就用数据库里的最新块高扫链
 		log.Info("sync detected latest index block", "number")
 	} else if cfg.ChainNode.StartingHeight > 0 {
-		// 如果配置的起始块高不为0，那就按照配置的最新高度开始扫描
 		lastScannedBlock = big.NewInt(int64(cfg.ChainNode.StartingHeight))
 	}
 	return lastScannedBlock
@@ -41,7 +38,6 @@ type Synchronizer struct {
 	ticker           *time.Ticker
 }
 
-// NewSynchronizer 创建同步器
 func NewSynchronizer(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*Synchronizer, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &Synchronizer{
