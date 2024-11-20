@@ -22,7 +22,8 @@ type Deposits struct {
 	TokenMeta    string         `json:"token_meta" gorm:"column:token_meta"`
 	Fee          *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
 	Amount       *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
-	Status       uint8          `json:"status"` // 0:充值确认中,1:充值钱包层已到账；2:充值已通知业务层；3:充值完成
+	Confirms     uint8          `json:"confirms"` // 交易确认位
+	Status       uint8          `json:"status"`   // 0:充值确认中,1:充值钱包层已到账；2:充值已通知业务层；3:充值完成;
 	Timestamp    uint64
 }
 
@@ -33,11 +34,38 @@ type DepositsDB interface {
 	DepositsView
 
 	StoreDeposits(string, []Deposits, uint64) error
+	UpdateDepositsComfirms(requestId string, blockNumber uint64, confirms uint64) error
 	UpdateDepositsStatus(requestId string, blockNumber uint64) error
 }
 
 type depositsDB struct {
 	gorm *gorm.DB
+}
+
+// UpdateDepositsComfirms 查询所有还没有过确认位交易，用最新区块减去对应区块更新确认，如果这个大于我们预设的确认位，那么这笔交易可以认为已经入账
+func (db *depositsDB) UpdateDepositsComfirms(requestId string, blockNumber uint64, confirms uint64) error {
+	var unConfirmDeposits []Deposits
+	result := db.gorm.Table("deposits_"+requestId).Where("block_number <= ? and status", blockNumber, 0).Find(unConfirmDeposits)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return result.Error
+	}
+	for _, deposit := range unConfirmDeposits {
+		chainConfirm := blockNumber - deposit.BlockNumber.Uint64()
+		if chainConfirm >= confirms {
+			deposit.Confirms = uint8(confirms)
+			deposit.Status = 1
+		} else {
+			deposit.Confirms = uint8(chainConfirm)
+		}
+		err := db.gorm.Table("deposits_" + requestId).Save(&deposit).Error
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (db *depositsDB) UpdateDepositsStatus(requestId string, blockNumber uint64) error {

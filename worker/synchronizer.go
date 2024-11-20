@@ -35,18 +35,21 @@ type Config struct {
 type BaseSynchronizer struct {
 	loopInterval     time.Duration
 	headerBufferSize uint64
-	syncerBatches    chan *BaseSynchronizerBatch
-	rpcClient        *rpcclient.WalletChainAccountClient
-	blockBatch       *rpcclient.BatchBlock
-	database         *database.DB
+
+	businessChannels chan map[string]*TransactionsChannel
+	businessIds      []string
+
+	rpcClient  *rpcclient.WalletChainAccountClient
+	blockBatch *rpcclient.BatchBlock
+	database   *database.DB
 
 	headers []rpcclient.BlockHeader
 	worker  *clock.LoopFn
 }
 
-type BaseSynchronizerBatch struct {
-	Headers      []rpcclient.BlockHeader
-	HeaderMap    map[common.Hash]*rpcclient.BlockHeader
+type TransactionsChannel struct {
+	BlockHeight  uint64
+	ChannelId    string
 	Transactions []*Transaction
 }
 
@@ -56,7 +59,7 @@ func (syncer *BaseSynchronizer) Start() error {
 	}
 	syncer.worker = clock.NewLoopFn(clock.SystemClock, syncer.tick, func() error {
 		log.Info("shutting down batch producer")
-		close(syncer.syncerBatches)
+		close(syncer.businessChannels)
 		return nil
 	}, syncer.loopInterval)
 	return nil
@@ -93,7 +96,7 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 		return nil
 	}
 	headerMap := make(map[common.Hash]*rpcclient.BlockHeader, len(headers))
-	var businessTransactions []*Transaction
+	var businessTxChannel map[string]*TransactionsChannel
 	for i := range headers {
 		header := headers[i]
 		txList, err := syncer.rpcClient.GetBlockInfo(header.Number)
@@ -101,28 +104,18 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 			log.Error("get block info fail", "err", err)
 			return err
 		}
-		businessList, err := syncer.database.Business.QueryBusinessList()
-		if err != nil {
-			log.Error("query business list fail", "err", err)
-			return err
-		}
-		/* If the 'from' address is an external address and the 'to' address is an internal user address, it is a deposit; call the callback interface to notify the business side.
-		 * If the 'from' address is a user address and the 'to' address is a hot wallet address, it is consolidation; call the callback interface to notify the business side.
-		 * If the 'from' address is a hot wallet address and the 'to' address is an external user address, it is a withdrawal; call the callback interface to notify the business side.
-		 * If the 'from' address is a hot wallet address and the 'to' address is a cold wallet address, it is a hot-to-cold transfer; call the callback interface to notify the business side.
-		 * If the 'from' address is a cold wallet address and the 'to' address is a hot wallet address, it is a cold-to-hot transfer; call the callback interface to notify the business side.
-		 */
-		for _, tx := range txList {
-			toAddress := common.HexToAddress(tx.To)
-			fromAddress := common.HexToAddress(tx.From)
-			for _, business := range businessList {
-				existToAddress, toAddressType := syncer.database.Addresses.AddressExist(business.BusinessUid, &toAddress)
-				existFromAddress, FromAddressType := syncer.database.Addresses.AddressExist(business.BusinessUid, &fromAddress)
+		for _, businessId := range syncer.businessIds {
+			var businessTransactions []*Transaction
+			for _, tx := range txList {
+				toAddress := common.HexToAddress(tx.To)
+				fromAddress := common.HexToAddress(tx.From)
+				existToAddress, toAddressType := syncer.database.Addresses.AddressExist(businessId, &toAddress)
+				existFromAddress, FromAddressType := syncer.database.Addresses.AddressExist(businessId, &fromAddress)
 				if !existToAddress && !existFromAddress {
 					continue
 				}
 				txItem := &Transaction{
-					BusinessId:     business.BusinessUid,
+					BusinessId:     businessId,
 					BlockNumber:    header.Number,
 					FromAddress:    tx.From,
 					ToAddress:      tx.To,
@@ -132,6 +125,13 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 					TxType:         "unknow",
 				}
 
+				/*
+				 * If the 'from' address is an external address and the 'to' address is an internal user address, it is a deposit; call the callback interface to notifier the business side.
+				 * If the 'from' address is a user address and the 'to' address is a hot wallet address, it is consolidation; call the callback interface to notifier the business side.
+				 * If the 'from' address is a hot wallet address and the 'to' address is an external user address, it is a withdrawal; call the callback interface to notifier the business side.
+				 * If the 'from' address is a hot wallet address and the 'to' address is a cold wallet address, it is a hot-to-cold transfer; call the callback interface to notifier the business side.
+				 * If the 'from' address is a cold wallet address and the 'to' address is a hot wallet address, it is a cold-to-hot transfer; call the callback interface to notifier the business side.
+				 */
 				if !existFromAddress && (existToAddress && toAddressType == 0) { // 充值
 					txItem.TxType = "deposit"
 				}
@@ -153,10 +153,12 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 				}
 				businessTransactions = append(businessTransactions, txItem)
 			}
+			businessTxChannel[businessId].BlockHeight = header.Number.Uint64()
+			businessTxChannel[businessId].Transactions = append(businessTxChannel[businessId].Transactions, businessTransactions...)
 		}
 		headerMap[header.Hash] = &header
 	}
-	headersRef := headers
-	syncer.syncerBatches <- &BaseSynchronizerBatch{Transactions: businessTransactions, Headers: headersRef, HeaderMap: headerMap}
+
+	syncer.businessChannels <- businessTxChannel
 	return nil
 }

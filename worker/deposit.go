@@ -27,6 +27,7 @@ import (
 type Deposit struct {
 	BaseSynchronizer
 
+	confirms       uint8
 	latestHeader   rpcclient.BlockHeader
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
@@ -44,6 +45,16 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 	if err != nil {
 		log.Error("new wallet account client fail", "err", err)
 		return nil, err
+	}
+
+	businessList, err := db.Business.QueryBusinessList()
+	if err != nil {
+		log.Error("query business list fail", "err", err)
+		return nil, err
+	}
+	var businessIds []string
+	for _, business := range businessList {
+		businessIds = append(businessIds, business.BusinessUid)
 	}
 
 	dbLatestBlockHeader, err := db.Blocks.LatestBlocks()
@@ -78,12 +89,14 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 		rpcClient:        accountClient,
 		blockBatch:       rpcclient.NewBatchBlock(accountClient, fromHeader, big.NewInt(int64(cfg.ChainNode.Confirmations))),
 		database:         db,
+		businessIds:      businessIds,
 	}
 
 	resCtx, resCancel := context.WithCancel(context.Background())
 
 	return &Deposit{
 		BaseSynchronizer: baseSyncer,
+		confirms:         uint8(cfg.ChainNode.Confirmations),
 		resourceCtx:      resCtx,
 		resourceCancel:   resCancel,
 		tasks: tasks.Group{HandleCrit: func(err error) {
@@ -110,7 +123,7 @@ func (deposit *Deposit) Start() error {
 		return fmt.Errorf("failed to start internal Synchronizer: %w", err)
 	}
 	deposit.tasks.Go(func() error {
-		for batch := range deposit.syncerBatches {
+		for batch := range deposit.businessChannels {
 			if err := deposit.handleBatch(batch); err != nil {
 				return fmt.Errorf("failed to handle batch, stopping L2 Synchronizer: %w", err)
 			}
@@ -120,39 +133,28 @@ func (deposit *Deposit) Start() error {
 	return nil
 }
 
-func (deposit *Deposit) handleBatch(batch *BaseSynchronizerBatch) error {
+func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error {
 	var transationFlowList []database.Transactions
 	var depositList []database.Deposits
 	var withdrawList []database.Withdraws
-	for i := range batch.Transactions {
-		tx := batch.Transactions[i]
-		txItem, err := deposit.rpcClient.GetTransactionByHash(tx.Hash)
-		if err != nil {
-			log.Info("get transaction by hash fail", "err", err)
-			return err
+
+	for _, businessId := range deposit.businessIds {
+		if businessId != batch[businessId].ChannelId {
+			continue
 		}
-		txFee, _ := new(big.Int).SetString(txItem.Fee, 10)
-		txAmount, _ := new(big.Int).SetString(txItem.Values[0].Value, 10)
-		timestamp, _ := strconv.Atoi(txItem.Datetime)
-		transationFlow := database.Transactions{
-			GUID:         uuid.New(),
-			BlockHash:    common.Hash{},
-			BlockNumber:  tx.BlockNumber,
-			Hash:         common.HexToHash(tx.Hash),
-			FromAddress:  common.HexToAddress(tx.FromAddress),
-			ToAddress:    common.HexToAddress(tx.ToAddress),
-			TokenAddress: common.HexToAddress(tx.TokenAddress),
-			TokenId:      "0x00",
-			TokenMeta:    "0x00",
-			Fee:          txFee,
-			Amount:       txAmount,
-			Status:       0,
-			TxType:       0,
-			Timestamp:    uint64(timestamp),
-		}
-		switch tx.TxType {
-		case "deposit":
-			depositItme := database.Deposits{
+		chainLatestBlock := batch[businessId].BlockHeight
+		batchTransactions := batch[businessId].Transactions
+		for i := range batchTransactions {
+			tx := batchTransactions[i]
+			txItem, err := deposit.rpcClient.GetTransactionByHash(tx.Hash)
+			if err != nil {
+				log.Info("get transaction by hash fail", "err", err)
+				return err
+			}
+			txFee, _ := new(big.Int).SetString(txItem.Fee, 10)
+			txAmount, _ := new(big.Int).SetString(txItem.Values[0].Value, 10)
+			timestamp, _ := strconv.Atoi(txItem.Datetime)
+			transationFlow := database.Transactions{
 				GUID:         uuid.New(),
 				BlockHash:    common.Hash{},
 				BlockNumber:  tx.BlockNumber,
@@ -165,66 +167,96 @@ func (deposit *Deposit) handleBatch(batch *BaseSynchronizerBatch) error {
 				Fee:          txFee,
 				Amount:       txAmount,
 				Status:       0,
+				TxType:       0,
 				Timestamp:    uint64(timestamp),
 			}
-			depositList = append(depositList, depositItme)
-			transationFlow.TxType = 0
-			break
-		case "withdraw":
-			withdrawItem := database.Withdraws{
-				GUID:         uuid.New(),
-				BlockHash:    common.Hash{},
-				BlockNumber:  tx.BlockNumber,
-				Hash:         common.HexToHash(tx.Hash),
-				FromAddress:  common.HexToAddress(tx.FromAddress),
-				ToAddress:    common.HexToAddress(tx.ToAddress),
-				TokenAddress: common.HexToAddress(tx.TokenAddress),
-				TokenId:      "0x00",
-				TokenMeta:    "0x00",
-				Fee:          txFee,
-				Amount:       txAmount,
-				Status:       2,
-				Timestamp:    uint64(timestamp),
+			switch tx.TxType {
+			case "deposit":
+				depositItme := database.Deposits{
+					GUID:         uuid.New(),
+					BlockHash:    common.Hash{},
+					BlockNumber:  tx.BlockNumber,
+					Hash:         common.HexToHash(tx.Hash),
+					FromAddress:  common.HexToAddress(tx.FromAddress),
+					ToAddress:    common.HexToAddress(tx.ToAddress),
+					TokenAddress: common.HexToAddress(tx.TokenAddress),
+					TokenId:      "0x00",
+					TokenMeta:    "0x00",
+					Fee:          txFee,
+					Amount:       txAmount,
+					Status:       0,
+					Timestamp:    uint64(timestamp),
+				}
+				depositList = append(depositList, depositItme)
+				transationFlow.TxType = 0
+				break
+			case "withdraw":
+				withdrawItem := database.Withdraws{
+					GUID:         uuid.New(),
+					BlockHash:    common.Hash{},
+					BlockNumber:  tx.BlockNumber,
+					Hash:         common.HexToHash(tx.Hash),
+					FromAddress:  common.HexToAddress(tx.FromAddress),
+					ToAddress:    common.HexToAddress(tx.ToAddress),
+					TokenAddress: common.HexToAddress(tx.TokenAddress),
+					TokenId:      "0x00",
+					TokenMeta:    "0x00",
+					Fee:          txFee,
+					Amount:       txAmount,
+					Status:       2,
+					Timestamp:    uint64(timestamp),
+				}
+				withdrawList = append(withdrawList, withdrawItem)
+				transationFlow.TxType = 1
+				break
+			case "collection":
+				transationFlow.TxType = 2
+				break
+			case "hot2cold":
+				transationFlow.TxType = 3
+				break
+			case "cold2hot":
+				transationFlow.TxType = 4
+				break
+			default:
+				break
 			}
-			withdrawList = append(withdrawList, withdrawItem)
-			transationFlow.TxType = 1
-			break
-		case "collection":
-			transationFlow.TxType = 2
-			break
-		case "hot2cold":
-			transationFlow.TxType = 3
-			break
-		case "cold2hot":
-			transationFlow.TxType = 4
-			break
-		default:
-			break
+			transationFlowList = append(transationFlowList, transationFlow)
 		}
-		transationFlowList = append(transationFlowList, transationFlow)
-	}
-	retryStrategy := &retry.ExponentialStrategy{Min: 1000, Max: 20_000, MaxJitter: 250}
-	if _, err := retry.Do[interface{}](deposit.resourceCtx, 10, retryStrategy, func() (interface{}, error) {
-		if err := deposit.database.Transaction(func(tx *database.DB) error {
-			if len(depositList) > 0 {
-				log.Info("Store deposit transaction success", "totalTx", len(depositList))
-				if err := tx.Deposits.StoreDeposits("", depositList, uint64(len(depositList))); err != nil {
-					return err
+		retryStrategy := &retry.ExponentialStrategy{Min: 1000, Max: 20_000, MaxJitter: 250}
+		if _, err := retry.Do[interface{}](deposit.resourceCtx, 10, retryStrategy, func() (interface{}, error) {
+			if err := deposit.database.Transaction(func(tx *database.DB) error {
+				if len(depositList) > 0 {
+					log.Info("Store deposit transaction success", "totalTx", len(depositList))
+					if err := tx.Deposits.StoreDeposits(businessId, depositList, uint64(len(depositList))); err != nil {
+						return err
+					}
+					log.Info("update deposit transaction confirms", "totalTx", len(depositList))
+					if err := tx.Deposits.UpdateDepositsComfirms(businessId, chainLatestBlock, uint64(deposit.confirms)); err != nil {
+						return err
+					}
 				}
-			}
-			if len(transationFlowList) > 0 {
-				if err := tx.Transactions.StoreTransactions("", transationFlowList, uint64(len(transationFlowList))); err != nil {
-					return err
+
+				if len(withdrawList) > 0 {
+					if err := tx.Withdraws.UpdateWithdrawStatus(businessId, withdrawList); err != nil {
+						return err
+					}
 				}
+
+				if len(transationFlowList) > 0 {
+					if err := tx.Transactions.StoreTransactions(businessId, transationFlowList, uint64(len(transationFlowList))); err != nil {
+						return err
+					}
+				}
+				return nil
+			}); err != nil {
+				log.Error("unable to persist batch", "err", err)
+				return nil, err
 			}
-			return nil
+			return nil, nil
 		}); err != nil {
-			log.Error("unable to persist batch", "err", err)
-			return nil, err
+			return err
 		}
-		return nil, nil
-	}); err != nil {
-		return err
 	}
 	return nil
 }

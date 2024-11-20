@@ -25,14 +25,14 @@ type Withdraws struct {
 	TokenMeta    string         `json:"token_meta" gorm:"column:token_meta"`
 	Fee          *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
 	Amount       *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
-	Status       uint8          `json:"status"` // 0:提现未签名发送, 1:提现已经发送到区块链网络；2:提现已上链；3:提现在钱包层已完成；4:提现已通知业务；5:提现成功
+	Status       uint8          `json:"status"` // 0:提现未签名, 1:提现交易已签名, 2:提现已经发送到区块链网络；3:提现在钱包层已完成；4:提现已通知业务；5:提现成功
 	TxSignHex    string         `json:"tx_sign_hex" gorm:"column:tx_sign_hex"`
 	Timestamp    uint64
 }
 
 type WithdrawsView interface {
-	QueryWithdrawsByHash(requestId string, hash common.Hash) (*Withdraws, error)
-	UnSendWithdrawsList(string, string) (*Withdraws, error)
+	QueryWithdrawsByHash(requestId string, txId string) (*Withdraws, error)
+	UnSendWithdrawsList(requestId string) ([]Withdraws, error)
 	ApiWithdrawList(string, string, int, int, string) ([]Withdraws, int64)
 
 	SubmitWithdrawFromBusiness(requestId string, fromAddress common.Address, toAddress common.Address, TokenAddress common.Address, amount *big.Int) error
@@ -43,23 +43,23 @@ type WithdrawsDB interface {
 
 	StoreWithdraw(string, *Withdraws) error
 	UpdateWithdrawTx(requestId string, transactionId string, signedTx string, fee *big.Int, status uint8) error
-	MarkWithdrawsToSend(requestId string, withdrawsList []Withdraws) error
+	UpdateWithdrawStatus(requestId string, withdrawsList []Withdraws) error
 }
 
 type withdrawsDB struct {
 	gorm *gorm.DB
 }
 
-func (db *withdrawsDB) UnSendWithdrawsList(requestId string, transactionId string) (*Withdraws, error) {
-	var withdraws Withdraws
-	err := db.gorm.Table("withdraws_"+requestId).Table("withdraws").Where("status = ? and guid = ?", 0, transactionId).Take(&withdraws).Error
+func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]Withdraws, error) {
+	var withdrawsList []Withdraws
+	err := db.gorm.Table("withdraws_"+requestId).Table("withdraws").Where("status = ?", 1).Find(&withdrawsList).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &withdraws, nil
+	return withdrawsList, nil
 }
 
 func (db *withdrawsDB) ApiWithdrawList(requestId string, address string, page int, pageSize int, order string) (withdraws []Withdraws, total int64) {
@@ -91,9 +91,9 @@ func (db *withdrawsDB) ApiWithdrawList(requestId string, address string, page in
 	return withdrawList, totalRecord
 }
 
-func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, hash common.Hash) (*Withdraws, error) {
+func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, txId string) (*Withdraws, error) {
 	var withdrawsEntity Withdraws
-	result := db.gorm.Table("withdraws_"+requestId).Where("hash", hash.String()).Take(&withdrawsEntity)
+	result := db.gorm.Table("withdraws_"+requestId).Where("guid", txId).Take(&withdrawsEntity)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -159,18 +159,17 @@ func (db *withdrawsDB) StoreWithdraw(requestId string, withdrawsList *Withdraws)
 	return result.Error
 }
 
-func (db *withdrawsDB) MarkWithdrawsToSend(requestId string, withdrawsList []Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawStatus(requestId string, withdrawsList []Withdraws) error {
 	for i := 0; i < len(withdrawsList); i++ {
 		var withdrawsSingle = Withdraws{}
-		result := db.gorm.Table("withdraws_" + requestId).Where(&Transactions{GUID: withdrawsList[i].GUID}).Take(&withdrawsSingle)
+		result := db.gorm.Table("withdraws_" + requestId).Where(&Transactions{Hash: withdrawsList[i].Hash}).Take(&withdrawsSingle)
 		if result.Error != nil {
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				return nil
 			}
 			return result.Error
 		}
-		withdrawsSingle.Hash = withdrawsList[i].Hash
-		withdrawsSingle.Status = 1
+		withdrawsSingle.Status = withdrawsList[i].Status // 提现完成
 		err := db.gorm.Table("withdraws_" + requestId).Save(&withdrawsSingle).Error
 		if err != nil {
 			return err
