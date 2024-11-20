@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"math/big"
 	"strconv"
-	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -84,7 +82,7 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 	}
 
 	baseSyncer := BaseSynchronizer{
-		loopInterval:     time.Duration(cfg.ChainNode.SynchronizerInterval) * time.Second,
+		loopInterval:     cfg.ChainNode.SynchronizerInterval,
 		headerBufferSize: cfg.ChainNode.BlocksStep,
 		rpcClient:        accountClient,
 		blockBatch:       rpcclient.NewBatchBlock(accountClient, fromHeader, big.NewInt(int64(cfg.ChainNode.Confirmations))),

@@ -75,6 +75,7 @@ func (nf *Notifier) Start() error {
 			case <-nf.ticker.C:
 				var txn []Transaction
 				for _, businessId := range nf.businessIds {
+					log.Info("txn and businessId", "txn", txn, "businessId", businessId)
 					// 获取需要通知充值
 					// 获取需要通知提现
 					// 获取需要通知归集
