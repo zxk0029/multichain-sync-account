@@ -33,6 +33,7 @@ type Deposit struct {
 }
 
 func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*Deposit, error) {
+	log.Info("New deposit", "ChainAccountRpc", cfg.ChainAccountRpc)
 	conn, err := grpc.NewClient(cfg.ChainAccountRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("Connect to da retriever fail", "err", err)
@@ -73,7 +74,7 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 		}
 		fromHeader = chainLatestBlockHeader
 	} else {
-		chainLatestBlockHeader, err := accountClient.GetBlockHeader(big.NewInt(int64(1)))
+		chainLatestBlockHeader, err := accountClient.GetBlockHeader(nil)
 		if err != nil {
 			log.Error("get block from chain account fail", "err", err)
 			return nil, err
