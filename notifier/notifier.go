@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -21,6 +22,9 @@ type Notifier struct {
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
 	ticker         *time.Ticker
+
+	shutdown context.CancelCauseFunc
+	stopped  atomic.Bool
 }
 
 func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, error) {
@@ -56,19 +60,7 @@ func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, 
 	}, nil
 }
 
-func (nf *Notifier) Close() error {
-	var result error
-	nf.resourceCancel()
-	nf.ticker.Stop()
-	if err := nf.tasks.Wait(); err != nil {
-		result = errors.Join(result, fmt.Errorf("failed to await notify %w"), err)
-		return result
-	}
-	log.Info("stop notify success")
-	return nil
-}
-
-func (nf *Notifier) Start() error {
+func (nf *Notifier) Start(ctx context.Context) error {
 	log.Info("start internals......")
 	nf.tasks.Go(func() error {
 		for {
@@ -125,6 +117,22 @@ func (nf *Notifier) Start() error {
 		}
 	})
 	return nil
+}
+
+func (nf *Notifier) Stop(ctx context.Context) error {
+	var result error
+	nf.resourceCancel()
+	nf.ticker.Stop()
+	if err := nf.tasks.Wait(); err != nil {
+		result = errors.Join(result, fmt.Errorf("failed to await notify %w"), err)
+		return result
+	}
+	log.Info("stop notify success")
+	return nil
+}
+
+func (nf *Notifier) Stopped() bool {
+	return nf.stopped.Load()
 }
 
 func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySuccess bool, deposits []database.Deposits, withdraws []database.Withdraws, internals []database.Internals) error {
