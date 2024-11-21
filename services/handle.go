@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/dapplink-labs/multichain-sync-account/database/dynamic"
 	"math/big"
 	"strconv"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/dapplink-labs/multichain-sync-account/database/dynamic"
 	dal_wallet_go "github.com/dapplink-labs/multichain-sync-account/protobuf/dal-wallet-go"
 	"github.com/dapplink-labs/multichain-sync-account/rpcclient/chain-account/account"
 )
@@ -60,8 +60,11 @@ func (bws *BusinessMiddleWireServices) BusinessRegister(ctx context.Context, req
 }
 
 func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.Context, request *dal_wallet_go.ExportAddressesRequest) (*dal_wallet_go.ExportAddressesResponse, error) {
-	var retAddressess []*dal_wallet_go.Address
-	var dbAddresses []database.Addresses
+	var (
+		retAddressess []*dal_wallet_go.Address
+		dbAddresses   []database.Addresses
+		balances      []database.Balances
+	)
 
 	for _, value := range request.PublicKeys {
 		address := bws.accountClient.ExportAddressByPubKey(strconv.Itoa(int(value.Type)), value.PublicKey)
@@ -77,6 +80,18 @@ func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.C
 			Timestamp:   uint64(time.Now().Unix()),
 		}
 		dbAddresses = append(dbAddresses, dbAddress)
+
+		balanceItem := database.Balances{
+			GUID:         uuid.New(),
+			Address:      common.HexToAddress(address),
+			TokenAddress: common.Address{},
+			AddressType:  uint8(value.Type),
+			Balance:      big.NewInt(0),
+			LockBalance:  big.NewInt(0),
+			Timestamp:    uint64(time.Now().Unix()),
+		}
+		balances = append(balances, balanceItem)
+
 		retAddressess = append(retAddressess, item)
 	}
 	err := bws.db.Addresses.StoreAddresses(request.RequestId, dbAddresses)
@@ -84,6 +99,13 @@ func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.C
 		return &dal_wallet_go.ExportAddressesResponse{
 			Code: dal_wallet_go.ReturnCode_ERROR,
 			Msg:  "store address to db fail",
+		}, nil
+	}
+	err = bws.db.Balances.StoreBalances(request.RequestId, balances)
+	if err != nil {
+		return &dal_wallet_go.ExportAddressesResponse{
+			Code: dal_wallet_go.ReturnCode_ERROR,
+			Msg:  "store balance to db fail",
 		}, nil
 	}
 	return &dal_wallet_go.ExportAddressesResponse{
@@ -320,7 +342,9 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 }
 
 func (bws *BusinessMiddleWireServices) SetTokenAddress(ctx context.Context, request *dal_wallet_go.SetTokenAddressRequest) (*dal_wallet_go.SetTokenAddressResponse, error) {
-	var tokenList []database.Tokens
+	var (
+		tokenList []database.Tokens
+	)
 	for _, value := range request.TokenList {
 		CollectAmountBigInt, _ := new(big.Int).SetString(value.CollectAmount, 10)
 		ColdAmountBigInt, _ := new(big.Int).SetString(value.ColdAmount, 10)

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/dapplink-labs/multichain-sync-account/common/retry"
 	"github.com/dapplink-labs/multichain-sync-account/common/tasks"
 	"github.com/dapplink-labs/multichain-sync-account/config"
 	"github.com/dapplink-labs/multichain-sync-account/database"
@@ -68,7 +69,16 @@ func (w *Internal) Start() error {
 						return err
 					}
 
+					var balanceList []database.Balances
+
 					for _, unSendInternalTx := range unSendInternalTxList {
+						balanceItem := database.Balances{
+							TokenAddress: unSendInternalTx.TokenAddress,
+							Address:      unSendInternalTx.FromAddress,
+							LockBalance:  unSendInternalTx.Amount,
+						}
+						balanceList = append(balanceList, balanceItem)
+
 						txHash, err := w.rpcClient.SendTx(unSendInternalTx.TxSignHex)
 						if err != nil {
 							log.Error("send transaction fail", "err", err)
@@ -79,9 +89,31 @@ func (w *Internal) Start() error {
 						}
 					}
 
-					err = w.db.Internals.UpdateInternalstatus(businessId.BusinessUid, 3, unSendInternalTxList)
-					if err != nil {
-						log.Error("update internals status fail", "err", err)
+					retryStrategy := &retry.ExponentialStrategy{Min: 1000, Max: 20_000, MaxJitter: 250}
+					if _, err := retry.Do[interface{}](w.resourceCtx, 10, retryStrategy, func() (interface{}, error) {
+						if err := w.db.Transaction(func(tx *database.DB) error {
+							if len(balanceList) > 0 {
+								log.Info("Update address balance", "totalTx", len(balanceList))
+								if err := tx.Balances.UpdateBalances(businessId.BusinessUid, balanceList); err != nil {
+									log.Error("Update address balance fail", "err", err)
+									return err
+								}
+
+							}
+							if len(unSendInternalTxList) > 0 {
+								err = w.db.Internals.UpdateInternalstatus(businessId.BusinessUid, 3, unSendInternalTxList)
+								if err != nil {
+									log.Error("update internals status fail", "err", err)
+									return err
+								}
+							}
+							return nil
+						}); err != nil {
+							log.Error("unable to persist batch", "err", err)
+							return nil, err
+						}
+						return nil, nil
+					}); err != nil {
 						return err
 					}
 				}

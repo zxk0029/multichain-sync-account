@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/dapplink-labs/multichain-sync-account/rpcclient"
 	"net"
 	"sync/atomic"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/dapplink-labs/multichain-sync-account/database"
 	"github.com/dapplink-labs/multichain-sync-account/protobuf/dal-wallet-go"
+	"github.com/dapplink-labs/multichain-sync-account/rpcclient"
 )
 
 const MaxRecvMessageSize = 1024 * 1024 * 300

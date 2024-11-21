@@ -22,8 +22,8 @@ type Transactions struct {
 	TokenMeta        string         `json:"token_meta" gorm:"column:token_meta"`
 	Fee              *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
 	Amount           *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
-	Status           uint8          `json:"status"`  // 0:交易确认中,1:钱包交易已到账；2:交易已通知业务层；3:交易完成
-	TxType           uint8          `json:"tx_type"` // 0:充值；1:提现；2:归集；3:热转冷；4:冷转热
+	Status           uint8          `json:"status"`  // 0:成功,1:失败
+	TxType           string         `json:"tx_type"` // deposit:充值；withdraw:提现；collection:归集；hot2cold:热转冷；cold2hot:冷转热
 	TransactionIndex *big.Int       `gorm:"serializer:u256;column:transaction_index" db:"transaction_index" json:"TransactionIndex" form:"transaction_index"`
 	Timestamp        uint64
 }

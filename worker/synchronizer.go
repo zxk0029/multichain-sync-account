@@ -116,6 +116,7 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 				if !existToAddress && !existFromAddress {
 					continue
 				}
+
 				log.Info("Found transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 				txItem := &Transaction{
 					BusinessId:     businessId,
@@ -125,7 +126,7 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 					Hash:           tx.Hash,
 					TokenAddress:   tx.TokenAddress,
 					ContractWallet: tx.ContractWallet,
-					TxType:         "unknow",
+					TxType:         "unknown",
 				}
 
 				/*
@@ -168,6 +169,7 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 						Transactions: businessTransactions,
 					}
 				} else {
+					businessTxChannel[businessId].BlockHeight = headers[i].Number.Uint64()
 					businessTxChannel[businessId].Transactions = append(businessTxChannel[businessId].Transactions, businessTransactions...)
 				}
 			}

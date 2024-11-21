@@ -53,6 +53,7 @@ CREATE INDEX IF NOT EXISTS tokens_token_address ON tokens (token_address);
 CREATE TABLE IF NOT EXISTS balances (
     guid          VARCHAR PRIMARY KEY,
     address       VARCHAR NOT NULL,
+    address_type  SMALLINT NOT NULL DEFAULT 0,
     token_address VARCHAR NOT NULL,
     balance       UINT256 NOT NULL CHECK(balance>=0),
     lock_balance  UINT256 NOT NULL,
@@ -109,7 +110,7 @@ CREATE TABLE IF NOT EXISTS internals (
      fee UINT256 NOT NULL,
      amount UINT256 NOT NULL,
      status SMALLINT NOT NULL DEFAULT 0,
-     tx_type SMALLINT NOT NULL DEFAULT 0,
+     tx_type VARCHAR NOT NULL,
      timestamp INTEGER NOT NULL CHECK(timestamp>0),
      tx_sign_hex VARCHAR NOT NULL
 );
@@ -130,7 +131,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     fee UINT256 NOT NULL,
     amount UINT256 NOT NULL,
     status SMALLINT NOT NULL DEFAULT 0,
-    tx_type SMALLINT NOT NULL DEFAULT 0,
+    tx_type VARCHAR NOT NULL,
     timestamp INTEGER NOT NULL CHECK(timestamp>0)
 );
 CREATE INDEX IF NOT EXISTS transactions_hash ON transactions(hash);
