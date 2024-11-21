@@ -4,7 +4,6 @@ import (
 	"errors"
 	"gorm.io/gorm"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,9 +30,9 @@ type Withdraws struct {
 }
 
 type WithdrawsView interface {
+	QueryNotifyWithdraws(string) ([]Withdraws, error)
 	QueryWithdrawsByHash(requestId string, txId string) (*Withdraws, error)
 	UnSendWithdrawsList(requestId string) ([]Withdraws, error)
-	ApiWithdrawList(string, string, int, int, string) ([]Withdraws, int64)
 
 	SubmitWithdrawFromBusiness(requestId string, fromAddress common.Address, toAddress common.Address, TokenAddress common.Address, amount *big.Int) error
 }
@@ -43,11 +42,23 @@ type WithdrawsDB interface {
 
 	StoreWithdraw(string, *Withdraws) error
 	UpdateWithdrawTx(requestId string, transactionId string, signedTx string, fee *big.Int, status uint8) error
-	UpdateWithdrawStatus(requestId string, withdrawsList []Withdraws) error
+	UpdateWithdrawStatus(requestId string, status uint8, withdrawsList []Withdraws) error
 }
 
 type withdrawsDB struct {
 	gorm *gorm.DB
+}
+
+func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]Withdraws, error) {
+	var notifyWithdraws []Withdraws
+	result := db.gorm.Table("withdraws_"+requestId).Where("status = ?", 3).Find(notifyWithdraws)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, result.Error
+	}
+	return notifyWithdraws, nil
 }
 
 func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]Withdraws, error) {
@@ -60,35 +71,6 @@ func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]Withdraws, error
 		return nil, err
 	}
 	return withdrawsList, nil
-}
-
-func (db *withdrawsDB) ApiWithdrawList(requestId string, address string, page int, pageSize int, order string) (withdraws []Withdraws, total int64) {
-	var totalRecord int64
-	var withdrawList []Withdraws
-	queryStateRoot := db.gorm.Table("withdraws_" + requestId)
-	if address != "0x00" {
-		err := db.gorm.Table("withdraws").Select("block_number").Where("from_address = ?", address).Count(&totalRecord).Error
-		if err != nil {
-			log.Error("get withdraws list by address count fail")
-		}
-		queryStateRoot.Where(" from_address = ?", address).Offset((page - 1) * pageSize).Limit(pageSize)
-	} else {
-		err := db.gorm.Table("withdraws").Select("block_number").Count(&totalRecord).Error
-		if err != nil {
-			log.Error("get withdraws list by address count fail ")
-		}
-		queryStateRoot.Offset((page - 1) * pageSize).Limit(pageSize)
-	}
-	if strings.ToLower(order) == "asc" {
-		queryStateRoot.Order("timestamp asc")
-	} else {
-		queryStateRoot.Order("timestamp desc")
-	}
-	qErr := queryStateRoot.Find(&withdrawList).Error
-	if qErr != nil {
-		log.Error("get withdraws list fail", "err", qErr)
-	}
-	return withdrawList, totalRecord
 }
 
 func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, txId string) (*Withdraws, error) {
@@ -159,7 +141,7 @@ func (db *withdrawsDB) StoreWithdraw(requestId string, withdrawsList *Withdraws)
 	return result.Error
 }
 
-func (db *withdrawsDB) UpdateWithdrawStatus(requestId string, withdrawsList []Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawStatus(requestId string, status uint8, withdrawsList []Withdraws) error {
 	for i := 0; i < len(withdrawsList); i++ {
 		var withdrawsSingle = Withdraws{}
 		result := db.gorm.Table("withdraws_" + requestId).Where(&Transactions{Hash: withdrawsList[i].Hash}).Take(&withdrawsSingle)
@@ -169,7 +151,7 @@ func (db *withdrawsDB) UpdateWithdrawStatus(requestId string, withdrawsList []Wi
 			}
 			return result.Error
 		}
-		withdrawsSingle.Status = withdrawsList[i].Status // 提现完成
+		withdrawsSingle.Status = status
 		err := db.gorm.Table("withdraws_" + requestId).Save(&withdrawsSingle).Error
 		if err != nil {
 			return err

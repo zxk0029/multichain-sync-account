@@ -82,9 +82,12 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 		fromHeader = chainLatestBlockHeader
 	}
 
+	businessTxChannel := make(chan map[string]*TransactionsChannel)
+
 	baseSyncer := BaseSynchronizer{
 		loopInterval:     cfg.ChainNode.SynchronizerInterval,
 		headerBufferSize: cfg.ChainNode.BlocksStep,
+		businessChannels: businessTxChannel,
 		rpcClient:        accountClient,
 		blockBatch:       rpcclient.NewBatchBlock(accountClient, fromHeader, big.NewInt(int64(cfg.ChainNode.Confirmations))),
 		database:         db,
@@ -122,7 +125,9 @@ func (deposit *Deposit) Start() error {
 		return fmt.Errorf("failed to start internal Synchronizer: %w", err)
 	}
 	deposit.tasks.Go(func() error {
+		log.Info("handle deposit task start")
 		for batch := range deposit.businessChannels {
+			log.Info("deposit business channel", "batch length", len(batch))
 			if err := deposit.handleBatch(batch); err != nil {
 				return fmt.Errorf("failed to handle batch, stopping L2 Synchronizer: %w", err)
 			}
@@ -133,23 +138,30 @@ func (deposit *Deposit) Start() error {
 }
 
 func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error {
-	var transationFlowList []database.Transactions
-	var depositList []database.Deposits
-	var withdrawList []database.Withdraws
+	var (
+		transationFlowList []database.Transactions
+		depositList        []database.Deposits
+		withdrawList       []database.Withdraws
+	)
 
 	for _, businessId := range deposit.businessIds {
-		if businessId != batch[businessId].ChannelId {
+		_, exists := batch[businessId]
+		if !exists {
 			continue
 		}
+
 		chainLatestBlock := batch[businessId].BlockHeight
 		batchTransactions := batch[businessId].Transactions
-		for i := range batchTransactions {
-			tx := batchTransactions[i]
+		log.Info("handle business flow", "businessId", businessId, "chainLatestBlock", batch[businessId].BlockHeight, "txn", len(batch[businessId].Transactions))
+
+		for _, tx := range batchTransactions {
+			log.Info("Request transaction from chain account", "txHash", tx.Hash)
 			txItem, err := deposit.rpcClient.GetTransactionByHash(tx.Hash)
 			if err != nil {
 				log.Info("get transaction by hash fail", "err", err)
 				return err
 			}
+			log.Info("get transaction success", "txHash", txItem.Hash)
 			txFee, _ := new(big.Int).SetString(txItem.Fee, 10)
 			txAmount, _ := new(big.Int).SetString(txItem.Values[0].Value, 10)
 			timestamp, _ := strconv.Atoi(txItem.Datetime)
@@ -237,7 +249,7 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 				}
 
 				if len(withdrawList) > 0 {
-					if err := tx.Withdraws.UpdateWithdrawStatus(businessId, withdrawList); err != nil {
+					if err := tx.Withdraws.UpdateWithdrawStatus(businessId, 3, withdrawList); err != nil {
 						return err
 					}
 				}

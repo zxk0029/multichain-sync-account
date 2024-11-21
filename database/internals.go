@@ -28,6 +28,7 @@ type Internals struct {
 }
 
 type InternalsView interface {
+	QueryNotifyInternal(requestId string) ([]Internals, error)
 	QueryInternalsByHash(requestId string, txId string) (*Internals, error)
 	UnSendInternalsList(requestId string) ([]Internals, error)
 }
@@ -37,7 +38,7 @@ type InternalsDB interface {
 
 	StoreInternal(string, *Internals) error
 	UpdateInternalTx(requestId string, transactionId string, signedTx string, fee *big.Int, status uint8) error
-	UpdateInternalstatus(requestId string, InternalsList []Internals) error
+	UpdateInternalstatus(requestId string, status uint8, InternalsList []Internals) error
 }
 
 type internalsDB struct {
@@ -46,6 +47,18 @@ type internalsDB struct {
 
 func NewInternalsDB(db *gorm.DB) InternalsDB {
 	return &internalsDB{gorm: db}
+}
+
+func (db *internalsDB) QueryNotifyInternal(requestId string) ([]Internals, error) {
+	var notifyInternals []Internals
+	result := db.gorm.Table("internals_"+requestId).Where("status = ?", 3).Find(notifyInternals)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, result.Error
+	}
+	return notifyInternals, nil
 }
 
 func (db *internalsDB) StoreInternal(requestId string, internals *Internals) error {
@@ -101,7 +114,7 @@ func (db *internalsDB) UpdateInternalTx(requestId string, transactionId string, 
 	return nil
 }
 
-func (db *internalsDB) UpdateInternalstatus(requestId string, InternalsList []Internals) error {
+func (db *internalsDB) UpdateInternalstatus(requestId string, status uint8, InternalsList []Internals) error {
 	for i := 0; i < len(InternalsList); i++ {
 		var InternalsSingle = Internals{}
 		result := db.gorm.Table("internals_" + requestId).Where(&Transactions{Hash: InternalsList[i].Hash}).Take(&InternalsSingle)
@@ -111,7 +124,7 @@ func (db *internalsDB) UpdateInternalstatus(requestId string, InternalsList []In
 			}
 			return result.Error
 		}
-		InternalsSingle.Status = InternalsList[i].Status // 提现完成
+		InternalsSingle.Status = status
 		err := db.gorm.Table("internals_" + requestId).Save(&InternalsSingle).Error
 		if err != nil {
 			return err

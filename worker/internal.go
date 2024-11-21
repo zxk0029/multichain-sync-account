@@ -79,7 +79,7 @@ func (w *Internal) Start() error {
 						}
 					}
 
-					err = w.db.Internals.UpdateInternalstatus(businessId.BusinessUid, unSendInternalTxList)
+					err = w.db.Internals.UpdateInternalstatus(businessId.BusinessUid, 3, unSendInternalTxList)
 					if err != nil {
 						log.Error("update internals status fail", "err", err)
 						return err

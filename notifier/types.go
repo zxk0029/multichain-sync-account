@@ -12,7 +12,7 @@ type Transaction struct {
 	ToAddress    string `json:"to_address"`
 	Value        string `json:"value"`
 	Fee          string `json:"fee"`
-	TxType       string `json:"tx_type"`
+	TxType       string `json:"tx_type"` // 0: 充值，1:提现；2:归集，3:热转冷；4:冷转热
 	Confirms     uint8  `json:"confirms"`
 	TokenAddress string `json:"token_address"`
 	TokenId      string `json:"token_id"`

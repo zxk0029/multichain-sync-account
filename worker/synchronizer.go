@@ -116,6 +116,7 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 				if !existToAddress && !existFromAddress {
 					continue
 				}
+				log.Info("Found transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 				txItem := &Transaction{
 					BusinessId:     businessId,
 					BlockNumber:    headers[i].Number,
@@ -135,22 +136,27 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 				 * If the 'from' address is a cold wallet address and the 'to' address is a hot wallet address, it is a cold-to-hot transfer; call the callback interface to notifier the business side.
 				 */
 				if !existFromAddress && (existToAddress && toAddressType == 0) { // 充值
+					log.Info("Found deposit transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 					txItem.TxType = "deposit"
 				}
 
 				if (existFromAddress && FromAddressType == 1) && !existToAddress { // 提现
+					log.Info("Found withdraw transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 					txItem.TxType = "withdraw"
 				}
 
 				if (existFromAddress && FromAddressType == 0) && (existToAddress && toAddressType == 1) { // 归集
+					log.Info("Found collection transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 					txItem.TxType = "collection"
 				}
 
 				if (existFromAddress && FromAddressType == 1) && (existToAddress && toAddressType == 2) { // 热转冷
+					log.Info("Found hot2cold transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 					txItem.TxType = "hot2cold"
 				}
 
 				if (existFromAddress && FromAddressType == 2) && (existToAddress && toAddressType == 1) { // 热转冷
+					log.Info("Found cold2hot transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 					txItem.TxType = "cold2hot"
 				}
 				businessTransactions = append(businessTransactions, txItem)
@@ -158,10 +164,12 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 			if len(businessTransactions) > 0 {
 				if businessTxChannel[businessId] == nil {
 					businessTxChannel[businessId] = &TransactionsChannel{
-						BlockHeight: headers[i].Number.Uint64(),
+						BlockHeight:  headers[i].Number.Uint64(),
+						Transactions: businessTransactions,
 					}
+				} else {
+					businessTxChannel[businessId].Transactions = append(businessTxChannel[businessId].Transactions, businessTransactions...)
 				}
-				businessTxChannel[businessId].Transactions = append(businessTxChannel[businessId].Transactions, businessTransactions...)
 			}
 		}
 	}
