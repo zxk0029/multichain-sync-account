@@ -69,7 +69,7 @@ func (db *internalsDB) StoreInternal(requestId string, internals *Internals) err
 
 func (db *internalsDB) QueryInternalsByHash(requestId string, txId string) (*Internals, error) {
 	var internalsEntity Internals
-	result := db.gorm.Table("withdraws_"+requestId).Where("guid", txId).Take(&internalsEntity)
+	result := db.gorm.Table("internals_"+requestId).Where("guid", txId).Take(&internalsEntity)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -81,7 +81,7 @@ func (db *internalsDB) QueryInternalsByHash(requestId string, txId string) (*Int
 
 func (db *internalsDB) UnSendInternalsList(requestId string) ([]Internals, error) {
 	var InternalsList []Internals
-	err := db.gorm.Table("internals_"+requestId).Table("internals").Where("status = ?", 1).Find(&InternalsList).Error
+	err := db.gorm.Table("internals_"+requestId).Where("status = ?", 1).Find(&InternalsList).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

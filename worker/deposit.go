@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -32,20 +30,7 @@ type Deposit struct {
 	tasks          tasks.Group
 }
 
-func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*Deposit, error) {
-	log.Info("New deposit", "ChainAccountRpc", cfg.ChainAccountRpc)
-	conn, err := grpc.NewClient(cfg.ChainAccountRpc, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Error("Connect to da retriever fail", "err", err)
-		return nil, err
-	}
-	client := account.NewWalletAccountServiceClient(conn)
-	accountClient, err := rpcclient.NewWalletChainAccountClient(context.Background(), client, "Ethereum")
-	if err != nil {
-		log.Error("new wallet account client fail", "err", err)
-		return nil, err
-	}
-
+func NewDeposit(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Deposit, error) {
 	businessList, err := db.Business.QueryBusinessList()
 	if err != nil {
 		log.Error("query business list fail", "err", err)
@@ -67,14 +52,14 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 		log.Info("sync bock", "number", dbLatestBlockHeader.Number, "hash", dbLatestBlockHeader.Hash)
 		fromHeader = dbLatestBlockHeader
 	} else if cfg.ChainNode.StartingHeight > 0 {
-		chainLatestBlockHeader, err := accountClient.GetBlockHeader(big.NewInt(int64(cfg.ChainNode.StartingHeight)))
+		chainLatestBlockHeader, err := rpcClient.GetBlockHeader(big.NewInt(int64(cfg.ChainNode.StartingHeight)))
 		if err != nil {
 			log.Error("get block from chain account fail", "err", err)
 			return nil, err
 		}
 		fromHeader = chainLatestBlockHeader
 	} else {
-		chainLatestBlockHeader, err := accountClient.GetBlockHeader(nil)
+		chainLatestBlockHeader, err := rpcClient.GetBlockHeader(nil)
 		if err != nil {
 			log.Error("get block from chain account fail", "err", err)
 			return nil, err
@@ -88,8 +73,8 @@ func NewDeposit(cfg *config.Config, db *database.DB, shutdown context.CancelCaus
 		loopInterval:     cfg.ChainNode.SynchronizerInterval,
 		headerBufferSize: cfg.ChainNode.BlocksStep,
 		businessChannels: businessTxChannel,
-		rpcClient:        accountClient,
-		blockBatch:       rpcclient.NewBatchBlock(accountClient, fromHeader, big.NewInt(int64(cfg.ChainNode.Confirmations))),
+		rpcClient:        rpcClient,
+		blockBatch:       rpcclient.NewBatchBlock(rpcClient, fromHeader, big.NewInt(int64(cfg.ChainNode.Confirmations))),
 		database:         db,
 		businessIds:      businessIds,
 	}

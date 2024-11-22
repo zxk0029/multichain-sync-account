@@ -19,24 +19,23 @@ import (
 type Withdraw struct {
 	rpcClient      *rpcclient.WalletChainAccountClient
 	db             *database.DB
-	chainNodeConf  *config.ChainNodeConfig
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
 	ticker         *time.Ticker
 }
 
-func NewWithdraw(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*Withdraw, error) {
+func NewWithdraw(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Withdraw, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &Withdraw{
+		rpcClient:      rpcClient,
 		db:             db,
-		chainNodeConf:  &cfg.ChainNode,
 		resourceCtx:    resCtx,
 		resourceCancel: resCancel,
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in withdraw: %w", err))
 		}},
-		ticker: time.NewTicker(time.Second * 5),
+		ticker: time.NewTicker(cfg.ChainNode.WorkerInterval),
 	}, nil
 }
 
@@ -62,13 +61,14 @@ func (w *Withdraw) Start() error {
 				businessList, err := w.db.Business.QueryBusinessList()
 				if err != nil {
 					log.Error("query business list fail", "err", err)
-					return err
+					continue
 				}
 
 				for _, businessId := range businessList {
 					unSendTransactionList, err := w.db.Withdraws.UnSendWithdrawsList(businessId.BusinessUid)
 					if err != nil {
-						return err
+						log.Error("Query un send withdraws list fail", "err", err)
+						continue
 					}
 
 					var balanceList []database.Balances
@@ -83,7 +83,7 @@ func (w *Withdraw) Start() error {
 						txHash, err := w.rpcClient.SendTx(unSendTransaction.TxSignHex)
 						if err != nil {
 							log.Error("send transaction fail", "err", err)
-							return err
+							continue
 						} else {
 							unSendTransaction.Hash = common.HexToHash(txHash)
 							unSendTransaction.Status = 2

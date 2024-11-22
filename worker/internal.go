@@ -25,16 +25,17 @@ type Internal struct {
 	ticker         *time.Ticker
 }
 
-func NewInternal(cfg *config.Config, db *database.DB, shutdown context.CancelCauseFunc) (*Internal, error) {
+func NewInternal(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Internal, error) {
 	resCtx, resCancel := context.WithCancel(context.Background())
 	return &Internal{
+		rpcClient:      rpcClient,
 		db:             db,
 		resourceCtx:    resCtx,
 		resourceCancel: resCancel,
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in internals: %w", err))
 		}},
-		ticker: time.NewTicker(time.Second * 5),
+		ticker: time.NewTicker(cfg.ChainNode.WorkerInterval),
 	}, nil
 }
 
@@ -57,16 +58,18 @@ func (w *Internal) Start() error {
 		for {
 			select {
 			case <-w.ticker.C:
+				log.Info("collection and hot to cold")
 				businessList, err := w.db.Business.QueryBusinessList()
 				if err != nil {
 					log.Error("query business list fail", "err", err)
-					return err
+					continue
 				}
 
 				for _, businessId := range businessList {
 					unSendInternalTxList, err := w.db.Internals.UnSendInternalsList(businessId.BusinessUid)
 					if err != nil {
-						return err
+						log.Error("query un send internal tx list fail", "err", err)
+						continue
 					}
 
 					var balanceList []database.Balances
@@ -82,7 +85,7 @@ func (w *Internal) Start() error {
 						txHash, err := w.rpcClient.SendTx(unSendInternalTx.TxSignHex)
 						if err != nil {
 							log.Error("send transaction fail", "err", err)
-							return err
+							continue
 						} else {
 							unSendInternalTx.Hash = common.HexToHash(txHash)
 							unSendInternalTx.Status = 2

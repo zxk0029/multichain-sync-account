@@ -107,14 +107,19 @@ func (wac *WalletChainAccountClient) GetAccount(address string) (int, error) {
 }
 
 func (wac *WalletChainAccountClient) SendTx(rawTx string) (string, error) {
+	log.Info("Send transaction", "rawTx", rawTx, "ChainName", wac.ChainName)
 	req := &account.SendTxRequest{
 		Chain:   wac.ChainName,
 		Network: "mainnet",
 		RawTx:   rawTx,
 	}
 	txInfo, err := wac.AccountRpClient.SendTx(wac.Ctx, req)
+	if txInfo == nil {
+		log.Error("send tx info fail, txInfo is null")
+		return "", err
+	}
 	if txInfo.Code == common.ReturnCode_ERROR {
-		log.Error("get block info fail", "err", err)
+		log.Error("send tx info fail", "err", err)
 		return "", err
 	}
 	return txInfo.TxHash, nil

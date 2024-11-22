@@ -25,10 +25,10 @@ const (
 )
 
 var (
-	EthGasLimit          uint64 = 21000
+	EthGasLimit          uint64 = 60000
 	TokenGasLimit        uint64 = 120000
-	maxFeePerGas                = "2900000000"
-	maxPriorityFeePerGas        = "2600000000"
+	maxFeePerGas                = "135177480"
+	maxPriorityFeePerGas        = "535177480"
 )
 
 func (bws *BusinessMiddleWireServices) BusinessRegister(ctx context.Context, request *dal_wallet_go.BusinessRegisterRequest) (*dal_wallet_go.BusinessRegisterResponse, error) {
@@ -144,7 +144,7 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 		internal := &database.Internals{
 			GUID:         transactionId,
 			BlockHash:    common.Hash{},
-			BlockNumber:  big.NewInt(0),
+			BlockNumber:  big.NewInt(1),
 			Hash:         common.Hash{},
 			FromAddress:  common.HexToAddress(request.From),
 			ToAddress:    common.HexToAddress(request.To),

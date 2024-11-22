@@ -63,7 +63,7 @@ func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]Withdraws, erro
 
 func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]Withdraws, error) {
 	var withdrawsList []Withdraws
-	err := db.gorm.Table("withdraws_"+requestId).Table("withdraws").Where("status = ?", 1).Find(&withdrawsList).Error
+	err := db.gorm.Table("withdraws_"+requestId).Where("status = ?", 1).Find(&withdrawsList).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
