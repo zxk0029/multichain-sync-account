@@ -161,14 +161,14 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 				log.Info("get transaction by hash fail", "err", err)
 				return err
 			}
-
 			amountBigInt, _ := new(big.Int).SetString(txItem.Values[0].Value, 10)
+			log.Info("Transaction amount", "amountBigInt", amountBigInt, "FromAddress", tx.FromAddress, "TokenAddress", tx.TokenAddress, "TokenAddress", tx.ToAddress)
 			balances = append(
 				balances,
 				database.TokenBalance{
 					FromAddress:  common.HexToAddress(tx.FromAddress),
-					ToAddress:    common.HexToAddress(tx.ToAddress),
-					TokenAddress: common.HexToAddress(tx.TokenAddress),
+					ToAddress:    common.HexToAddress(txItem.Tos[0].Address),
+					TokenAddress: common.HexToAddress(txItem.ContractAddress),
 					Balance:      amountBigInt,
 					TxType:       tx.TxType,
 				},

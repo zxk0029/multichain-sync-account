@@ -122,7 +122,7 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 		withdraw := &database.Withdraws{
 			GUID:         transactionId,
 			BlockHash:    common.Hash{},
-			BlockNumber:  big.NewInt(0),
+			BlockNumber:  big.NewInt(1),
 			Hash:         common.Hash{},
 			FromAddress:  common.HexToAddress(request.From),
 			ToAddress:    common.HexToAddress(request.To),

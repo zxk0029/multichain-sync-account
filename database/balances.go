@@ -24,7 +24,7 @@ type Balances struct {
 }
 
 type BalancesView interface {
-	QueryWalletBalanceByTokenAndAddress(requestId string, addressType uint8, address, tokenAddress common.Address) (*Balances, error)
+	QueryWalletBalanceByTokenAndAddress(requestId string, addressType uint8, address, tokenAddress common.Address, balance *big.Int) (*Balances, error)
 }
 
 type BalancesDB interface {
@@ -68,7 +68,7 @@ func (db *balancesDB) UpdateBalances(requestId string, balanceList []Balances) e
 	return nil
 }
 
-func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(requestId string, addressType uint8, address, tokenAddress common.Address) (*Balances, error) {
+func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(requestId string, addressType uint8, address, tokenAddress common.Address, balances *big.Int) (*Balances, error) {
 	var balanceEntry Balances
 	err := db.gorm.Table("balances_"+requestId).Where("address = ? and token_address = ?", strings.ToLower(address.String()), strings.ToLower(tokenAddress.String())).Take(&balanceEntry).Error
 	if err != nil {
@@ -78,7 +78,7 @@ func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(requestId string, addr
 				Address:      address,
 				TokenAddress: tokenAddress,
 				AddressType:  addressType,
-				Balance:      big.NewInt(0),
+				Balance:      balances,
 				LockBalance:  big.NewInt(0),
 				Timestamp:    uint64(time.Now().Unix()),
 			}
@@ -96,98 +96,101 @@ func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(requestId string, addr
 
 func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalance) error {
 	for _, value := range balanceList {
+		log.Info("Query wallet balance by token and address", "toAddress", value.ToAddress, "TokenAddress", value.TokenAddress, "Balance", value.Balance, "TxType", value.TxType)
 		if value.TxType == "deposit" {
-			userAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 0, value.ToAddress, value.TokenAddress)
+			userAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 0, value.ToAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query user address fail", "err", err)
 				return err
 			}
 			userAddress.Balance = new(big.Int).Add(userAddress.Balance, value.Balance)
-			errU := db.gorm.Save(&userAddress).Error
+			log.Info("Query user address success", "AddressType", userAddress.AddressType, "Address", userAddress.Address, "Balance", userAddress.Balance)
+
+			errU := db.gorm.Table("balances_" + requestId).Save(&userAddress).Error
 			if errU != nil {
 				log.Error("Update user balance fail", "err", err)
 				return errU
 			}
 		} else if value.TxType == "withdraw" {
-			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.FromAddress, value.TokenAddress)
+			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.FromAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query user address fail", "err", err)
 				return err
 			}
 			hotWalletAddress.Balance = new(big.Int).Sub(hotWalletAddress.Balance, value.Balance)
-			errU := db.gorm.Save(&hotWalletAddress).Error
+			errU := db.gorm.Table("balances_" + requestId).Save(&hotWalletAddress).Error
 			if errU != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
 				return errU
 			}
 		} else if value.TxType == "collection" {
-			userWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 0, value.FromAddress, value.TokenAddress)
+			userWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 0, value.FromAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query user address fail", "err", err)
 				return err
 			}
 			userWalletAddress.Balance = new(big.Int).Sub(userWalletAddress.Balance, value.Balance)
-			errU := db.gorm.Save(&userWalletAddress).Error
+			errU := db.gorm.Table("balances_" + requestId).Save(&userWalletAddress).Error
 			if errU != nil {
 				log.Error("Update user balance fail", "err", err)
 				return errU
 			}
 
-			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.ToAddress, value.TokenAddress)
+			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.ToAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query hot wallet balance fail", "err", err)
 				return err
 			}
 			hotWalletAddress.Balance = new(big.Int).Add(hotWalletAddress.Balance, value.Balance)
-			errHot := db.gorm.Save(&userWalletAddress).Error
+			errHot := db.gorm.Table("balances_" + requestId).Save(&userWalletAddress).Error
 			if errHot != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
 				return errHot
 			}
 		} else if value.TxType == "hot2cold" {
-			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.FromAddress, value.TokenAddress)
+			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.FromAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query hot wallet info fail", "err", err)
 				return err
 			}
 			hotWalletAddress.Balance = new(big.Int).Sub(hotWalletAddress.Balance, value.Balance)
-			errHot := db.gorm.Save(&hotWalletAddress).Error
+			errHot := db.gorm.Table("balances_" + requestId).Save(&hotWalletAddress).Error
 			if errHot != nil {
 				log.Error("Update user balance fail", "err", err)
 				return errHot
 			}
 
-			coldWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 2, value.ToAddress, value.TokenAddress)
+			coldWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 2, value.ToAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query hot wallet balance fail", "err", err)
 				return err
 			}
 			coldWalletAddress.Balance = new(big.Int).Add(coldWalletAddress.Balance, value.Balance)
-			errCold := db.gorm.Save(&coldWalletAddress).Error
+			errCold := db.gorm.Table("balances_" + requestId).Save(&coldWalletAddress).Error
 			if errCold != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
 				return errCold
 			}
 		} else {
-			coldWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 2, value.ToAddress, value.TokenAddress)
+			coldWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 2, value.ToAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query hot wallet balance fail", "err", err)
 				return err
 			}
 			coldWalletAddress.Balance = new(big.Int).Sub(coldWalletAddress.Balance, value.Balance)
-			errCold := db.gorm.Save(&coldWalletAddress).Error
+			errCold := db.gorm.Table("balances_" + requestId).Save(&coldWalletAddress).Error
 			if errCold != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
 				return errCold
 			}
 
-			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.FromAddress, value.TokenAddress)
+			hotWalletAddress, err := db.QueryWalletBalanceByTokenAndAddress(requestId, 1, value.FromAddress, value.TokenAddress, value.Balance)
 			if err != nil {
 				log.Error("Query hot wallet info fail", "err", err)
 				return err
 			}
 			hotWalletAddress.Balance = new(big.Int).Add(hotWalletAddress.Balance, value.Balance)
-			errHot := db.gorm.Save(&hotWalletAddress).Error
+			errHot := db.gorm.Table("balances_" + requestId).Save(&hotWalletAddress).Error
 			if errHot != nil {
 				log.Error("Update user balance fail", "err", err)
 				return errHot
