@@ -59,7 +59,7 @@ func (db *depositsDB) QueryNotifyDeposits(requestId string) ([]Deposits, error) 
 // UpdateDepositsComfirms 查询所有还没有过确认位交易，用最新区块减去对应区块更新确认，如果这个大于我们预设的确认位，那么这笔交易可以认为已经入账
 func (db *depositsDB) UpdateDepositsComfirms(requestId string, blockNumber uint64, confirms uint64) error {
 	var unConfirmDeposits []Deposits
-	result := db.gorm.Table("deposits_"+requestId).Where("block_number <= ? and status", blockNumber, 0).Find(unConfirmDeposits)
+	result := db.gorm.Table("deposits_"+requestId).Where("block_number <= ? and status = ?", blockNumber, 0).Find(&unConfirmDeposits)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil

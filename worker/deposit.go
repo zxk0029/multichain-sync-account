@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -155,7 +155,7 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 		log.Info("handle business flow", "businessId", businessId, "chainLatestBlock", batch[businessId].BlockHeight, "txn", len(batch[businessId].Transactions))
 
 		for _, tx := range batch[businessId].Transactions {
-			log.Info("Request transaction from chain account", "txHash", tx.Hash)
+			log.Info("Request transaction from chain account", "txHash", tx.Hash, "fromAddress", tx.FromAddress)
 			txItem, err := deposit.rpcClient.GetTransactionByHash(tx.Hash)
 			if err != nil {
 				log.Info("get transaction by hash fail", "err", err)
@@ -207,10 +207,11 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 					if err := tx.Deposits.StoreDeposits(businessId, depositList, uint64(len(depositList))); err != nil {
 						return err
 					}
-					log.Info("update deposit transaction confirms", "totalTx", len(depositList))
-					if err := tx.Deposits.UpdateDepositsComfirms(businessId, batch[businessId].BlockHeight, uint64(deposit.confirms)); err != nil {
-						return err
-					}
+				}
+
+				if err := tx.Deposits.UpdateDepositsComfirms(businessId, batch[businessId].BlockHeight, uint64(deposit.confirms)); err != nil {
+					log.Info("Handle confims fail", "totalTx", "err", err)
+					return err
 				}
 
 				if len(balances) > 0 {
@@ -253,7 +254,6 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage) (database.Deposits, error) {
 	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	timestamp, _ := strconv.Atoi(txMsg.Datetime)
 	depositTx := database.Deposits{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
@@ -267,7 +267,7 @@ func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage)
 		Fee:          txFee,
 		Amount:       txAmount,
 		Status:       0,
-		Timestamp:    uint64(timestamp),
+		Timestamp:    uint64(time.Now().Unix()),
 	}
 	return depositTx, nil
 }
@@ -275,7 +275,6 @@ func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage)
 func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage) (database.Withdraws, error) {
 	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	timestamp, _ := strconv.Atoi(txMsg.Datetime)
 	withdrawTx := database.Withdraws{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
@@ -289,7 +288,7 @@ func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage
 		Fee:          txFee,
 		Amount:       txAmount,
 		Status:       2,
-		Timestamp:    uint64(timestamp),
+		Timestamp:    uint64(time.Now().Unix()),
 	}
 	return withdrawTx, nil
 }
@@ -297,7 +296,6 @@ func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage
 func (deposit *Deposit) HandleTransaction(tx *Transaction, txMsg *account.TxMessage) (database.Transactions, error) {
 	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	timestamp, _ := strconv.Atoi(txMsg.Datetime)
 	transationTx := database.Transactions{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
@@ -312,7 +310,7 @@ func (deposit *Deposit) HandleTransaction(tx *Transaction, txMsg *account.TxMess
 		Status:       uint8(txMsg.Status),
 		Amount:       txAmount,
 		TxType:       tx.TxType,
-		Timestamp:    uint64(timestamp),
+		Timestamp:    uint64(time.Now().Unix()),
 	}
 	return transationTx, nil
 }
@@ -320,7 +318,6 @@ func (deposit *Deposit) HandleTransaction(tx *Transaction, txMsg *account.TxMess
 func (deposit *Deposit) HandleInternalTx(tx *Transaction, txMsg *account.TxMessage) (database.Internals, error) {
 	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	timestamp, _ := strconv.Atoi(txMsg.Datetime)
 	internalTx := database.Internals{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
@@ -335,7 +332,7 @@ func (deposit *Deposit) HandleInternalTx(tx *Transaction, txMsg *account.TxMessa
 		Status:       uint8(txMsg.Status),
 		Amount:       txAmount,
 		TxType:       tx.TxType,
-		Timestamp:    uint64(timestamp),
+		Timestamp:    uint64(time.Now().Unix()),
 	}
 	return internalTx, nil
 }

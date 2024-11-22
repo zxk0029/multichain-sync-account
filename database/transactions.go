@@ -11,21 +11,20 @@ import (
 )
 
 type Transactions struct {
-	GUID             uuid.UUID      `gorm:"primaryKey" json:"guid"`
-	BlockHash        common.Hash    `gorm:"column:block_hash;serializer:bytes"  db:"block_hash" json:"block_hash"`
-	BlockNumber      *big.Int       `gorm:"serializer:u256;column:block_number" db:"block_number" json:"BlockNumber" form:"block_number"`
-	Hash             common.Hash    `gorm:"column:hash;serializer:bytes"  db:"hash" json:"hash"`
-	FromAddress      common.Address `json:"from_address" gorm:"serializer:bytes"`
-	ToAddress        common.Address `json:"to_address" gorm:"serializer:bytes"`
-	TokenAddress     common.Address `json:"token_address" gorm:"serializer:bytes"`
-	TokenId          string         `json:"token_id" gorm:"column:token_id"`
-	TokenMeta        string         `json:"token_meta" gorm:"column:token_meta"`
-	Fee              *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
-	Amount           *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
-	Status           uint8          `json:"status"`  // 0:成功,1:失败
-	TxType           string         `json:"tx_type"` // deposit:充值；withdraw:提现；collection:归集；hot2cold:热转冷；cold2hot:冷转热
-	TransactionIndex *big.Int       `gorm:"serializer:u256;column:transaction_index" db:"transaction_index" json:"TransactionIndex" form:"transaction_index"`
-	Timestamp        uint64
+	GUID         uuid.UUID      `gorm:"primaryKey" json:"guid"`
+	BlockHash    common.Hash    `gorm:"column:block_hash;serializer:bytes"  db:"block_hash" json:"block_hash"`
+	BlockNumber  *big.Int       `gorm:"serializer:u256;column:block_number" db:"block_number" json:"BlockNumber" form:"block_number"`
+	Hash         common.Hash    `gorm:"column:hash;serializer:bytes"  db:"hash" json:"hash"`
+	FromAddress  common.Address `json:"from_address" gorm:"serializer:bytes"`
+	ToAddress    common.Address `json:"to_address" gorm:"serializer:bytes"`
+	TokenAddress common.Address `json:"token_address" gorm:"serializer:bytes"`
+	TokenId      string         `json:"token_id" gorm:"column:token_id"`
+	TokenMeta    string         `json:"token_meta" gorm:"column:token_meta"`
+	Fee          *big.Int       `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
+	Amount       *big.Int       `gorm:"serializer:u256;column:amount" db:"amount" json:"Amount" form:"amount"`
+	Status       uint8          `json:"status"`  // 0:成功,1:失败
+	TxType       string         `json:"tx_type"` // deposit:充值；withdraw:提现；collection:归集；hot2cold:热转冷；cold2hot:冷转热
+	Timestamp    uint64
 }
 
 type TransactionsView interface {
