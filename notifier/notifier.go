@@ -37,6 +37,7 @@ func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, 
 	var businessIds []string
 	var notifyClient map[string]*NotifyClient
 	for _, business := range businessList {
+		log.Info("handle business id", "business", business.BusinessUid)
 		businessIds = append(businessIds, business.BusinessUid)
 		client, err := NewNotifierClient(business.NotifyUrl)
 		if err != nil {
