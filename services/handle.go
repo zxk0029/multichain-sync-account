@@ -183,9 +183,12 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 	}
 	nonce, _ := strconv.Atoi(accountInfo.Sequence)
 	var gasLimit uint64
+	var contractAddress string
 	if request.ContractAddress == "0x00" {
+		contractAddress = "0x00"
 		gasLimit = EthGasLimit
 	} else {
+		contractAddress = request.ContractAddress
 		gasLimit = TokenGasLimit
 	}
 	txStructure := TxStructure{
@@ -195,7 +198,7 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 		GasTipCap:       maxFeePerGas,
 		GasFeeCap:       maxPriorityFeePerGas,
 		Gas:             gasLimit,
-		ContractAddress: request.ContractAddress,
+		ContractAddress: contractAddress,
 		FromAddress:     request.From,
 		ToAddress:       request.To,
 		TokenId:         request.TokenId,
@@ -244,10 +247,13 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		}
 		nonce, _ := strconv.Atoi(accountInfo.Sequence)
 		var gasLimit uint64
-		if tx.TokenAddress.String() == "0x00" {
+		var contractAddress string
+		if tx.TokenAddress.String() == "0x00" || tx.TokenAddress.String() == "0x0000000000000000000000000000000000000000" {
 			gasLimit = EthGasLimit
+			contractAddress = "0x00"
 		} else {
 			gasLimit = TokenGasLimit
+			contractAddress = tx.TokenAddress.String()
 		}
 		txStructure = TxStructure{
 			ChainId:         request.ChainId,
@@ -256,7 +262,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			GasTipCap:       maxFeePerGas,
 			GasFeeCap:       maxPriorityFeePerGas,
 			Gas:             gasLimit,
-			ContractAddress: tx.TokenAddress.String(),
+			ContractAddress: contractAddress,
 			FromAddress:     tx.FromAddress.String(),
 			ToAddress:       tx.ToAddress.String(),
 			TokenId:         tx.TokenId,
@@ -278,10 +284,13 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		}
 		nonce, _ := strconv.Atoi(accountInfo.Sequence)
 		var gasLimit uint64
-		if tx.TokenAddress.String() == "0x00" {
+		var contractAddress string
+		if tx.TokenAddress.String() == "0x00" || tx.TokenAddress.String() == "0x0000000000000000000000000000000000000000" {
 			gasLimit = EthGasLimit
+			contractAddress = "0x00"
 		} else {
 			gasLimit = TokenGasLimit
+			contractAddress = tx.TokenAddress.String()
 		}
 		txStructure = TxStructure{
 			ChainId:         request.ChainId,
@@ -290,7 +299,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			GasTipCap:       maxFeePerGas,
 			GasFeeCap:       maxPriorityFeePerGas,
 			Gas:             gasLimit,
-			ContractAddress: tx.TokenAddress.String(),
+			ContractAddress: contractAddress,
 			FromAddress:     tx.FromAddress.String(),
 			ToAddress:       tx.ToAddress.String(),
 			TokenId:         tx.TokenId,
