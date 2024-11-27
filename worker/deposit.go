@@ -31,16 +31,6 @@ type Deposit struct {
 }
 
 func NewDeposit(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Deposit, error) {
-	businessList, err := db.Business.QueryBusinessList()
-	if err != nil {
-		log.Error("query business list fail", "err", err)
-		return nil, err
-	}
-	var businessIds []string
-	for _, business := range businessList {
-		businessIds = append(businessIds, business.BusinessUid)
-	}
-
 	dbLatestBlockHeader, err := db.Blocks.LatestBlocks()
 	if err != nil {
 		log.Error("get latest block from database fail")
@@ -76,7 +66,6 @@ func NewDeposit(cfg *config.Config, db *database.DB, rpcClient *rpcclient.Wallet
 		rpcClient:        rpcClient,
 		blockBatch:       rpcclient.NewBatchBlock(rpcClient, fromHeader, big.NewInt(int64(cfg.ChainNode.Confirmations))),
 		database:         db,
-		businessIds:      businessIds,
 	}
 
 	resCtx, resCancel := context.WithCancel(context.Background())
@@ -123,8 +112,13 @@ func (deposit *Deposit) Start() error {
 }
 
 func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error {
-	for _, businessId := range deposit.businessIds {
-		_, exists := batch[businessId]
+	businessList, err := deposit.database.Business.QueryBusinessList()
+	if err != nil {
+		log.Error("query business list fail", "err", err)
+		return err
+	}
+	for _, business := range businessList {
+		_, exists := batch[business.BusinessUid]
 		if !exists {
 			continue
 		}
@@ -137,9 +131,9 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			balances            []database.TokenBalance
 		)
 
-		log.Info("handle business flow", "businessId", businessId, "chainLatestBlock", batch[businessId].BlockHeight, "txn", len(batch[businessId].Transactions))
+		log.Info("handle business flow", "businessId", business.BusinessUid, "chainLatestBlock", batch[business.BusinessUid].BlockHeight, "txn", len(batch[business.BusinessUid].Transactions))
 
-		for _, tx := range batch[businessId].Transactions {
+		for _, tx := range batch[business.BusinessUid].Transactions {
 			log.Info("Request transaction from chain account", "txHash", tx.Hash, "fromAddress", tx.FromAddress)
 			txItem, err := deposit.rpcClient.GetTransactionByHash(tx.Hash)
 			if err != nil {
@@ -189,37 +183,37 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			if err := deposit.database.Transaction(func(tx *database.DB) error {
 				if len(depositList) > 0 {
 					log.Info("Store deposit transaction success", "totalTx", len(depositList))
-					if err := tx.Deposits.StoreDeposits(businessId, depositList, uint64(len(depositList))); err != nil {
+					if err := tx.Deposits.StoreDeposits(business.BusinessUid, depositList, uint64(len(depositList))); err != nil {
 						return err
 					}
 				}
 
-				if err := tx.Deposits.UpdateDepositsComfirms(businessId, batch[businessId].BlockHeight, uint64(deposit.confirms)); err != nil {
+				if err := tx.Deposits.UpdateDepositsComfirms(business.BusinessUid, batch[business.BusinessUid].BlockHeight, uint64(deposit.confirms)); err != nil {
 					log.Info("Handle confims fail", "totalTx", "err", err)
 					return err
 				}
 
 				if len(balances) > 0 {
 					log.Info("Handle balances success", "totalTx", len(balances))
-					if err := tx.Balances.UpdateOrCreate(businessId, balances); err != nil {
+					if err := tx.Balances.UpdateOrCreate(business.BusinessUid, balances); err != nil {
 						return err
 					}
 				}
 
 				if len(withdrawList) > 0 {
-					if err := tx.Withdraws.UpdateWithdrawStatus(businessId, 3, withdrawList); err != nil {
+					if err := tx.Withdraws.UpdateWithdrawStatus(business.BusinessUid, 3, withdrawList); err != nil {
 						return err
 					}
 				}
 
 				if len(internals) > 0 {
-					if err := tx.Internals.UpdateInternalstatus(businessId, 3, internals); err != nil {
+					if err := tx.Internals.UpdateInternalstatus(business.BusinessUid, 3, internals); err != nil {
 						return err
 					}
 				}
 
 				if len(transactionFlowList) > 0 {
-					if err := tx.Transactions.StoreTransactions(businessId, transactionFlowList, uint64(len(transactionFlowList))); err != nil {
+					if err := tx.Transactions.StoreTransactions(business.BusinessUid, transactionFlowList, uint64(len(transactionFlowList))); err != nil {
 						return err
 					}
 				}

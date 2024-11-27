@@ -37,7 +37,6 @@ type BaseSynchronizer struct {
 	headerBufferSize uint64
 
 	businessChannels chan map[string]*TransactionsChannel
-	businessIds      []string
 
 	rpcClient  *rpcclient.WalletChainAccountClient
 	blockBatch *rpcclient.BatchBlock
@@ -106,20 +105,27 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 			log.Error("get block info fail", "err", err)
 			return err
 		}
-		for _, businessId := range syncer.businessIds {
+
+		businessList, err := syncer.database.Business.QueryBusinessList()
+		if err != nil {
+			log.Error("query business list fail", "err", err)
+			return err
+		}
+
+		for _, businessId := range businessList {
 			var businessTransactions []*Transaction
 			for _, tx := range txList {
 				toAddress := common.HexToAddress(tx.To)
 				fromAddress := common.HexToAddress(tx.From)
-				existToAddress, toAddressType := syncer.database.Addresses.AddressExist(businessId, &toAddress)
-				existFromAddress, FromAddressType := syncer.database.Addresses.AddressExist(businessId, &fromAddress)
+				existToAddress, toAddressType := syncer.database.Addresses.AddressExist(businessId.BusinessUid, &toAddress)
+				existFromAddress, FromAddressType := syncer.database.Addresses.AddressExist(businessId.BusinessUid, &fromAddress)
 				if !existToAddress && !existFromAddress {
 					continue
 				}
 
 				log.Info("Found transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
 				txItem := &Transaction{
-					BusinessId:     businessId,
+					BusinessId:     businessId.BusinessUid,
 					BlockNumber:    headers[i].Number,
 					FromAddress:    tx.From,
 					ToAddress:      tx.To,
@@ -163,14 +169,14 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 				businessTransactions = append(businessTransactions, txItem)
 			}
 			if len(businessTransactions) > 0 {
-				if businessTxChannel[businessId] == nil {
-					businessTxChannel[businessId] = &TransactionsChannel{
+				if businessTxChannel[businessId.BusinessUid] == nil {
+					businessTxChannel[businessId.BusinessUid] = &TransactionsChannel{
 						BlockHeight:  headers[i].Number.Uint64(),
 						Transactions: businessTransactions,
 					}
 				} else {
-					businessTxChannel[businessId].BlockHeight = headers[i].Number.Uint64()
-					businessTxChannel[businessId].Transactions = append(businessTxChannel[businessId].Transactions, businessTransactions...)
+					businessTxChannel[businessId.BusinessUid].BlockHeight = headers[i].Number.Uint64()
+					businessTxChannel[businessId.BusinessUid].Transactions = append(businessTxChannel[businessId.BusinessUid].Transactions, businessTransactions...)
 				}
 			}
 		}
