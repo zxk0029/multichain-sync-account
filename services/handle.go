@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"math/big"
 	"strconv"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/dapplink-labs/multichain-sync-account/common/json2"
 	"github.com/dapplink-labs/multichain-sync-account/database"
 	"github.com/dapplink-labs/multichain-sync-account/database/dynamic"
 	dal_wallet_go "github.com/dapplink-labs/multichain-sync-account/protobuf/dal-wallet-go"
@@ -173,15 +173,21 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 	}
 
 	accountReq := &account.AccountRequest{
-		Chain:   ChainName,
-		Network: Network,
-		Address: request.From,
+		Chain:           ChainName,
+		Network:         Network,
+		Address:         request.From,
+		ContractAddress: "0x00",
 	}
 	accountInfo, err := bws.accountClient.AccountRpClient.GetAccount(context.Background(), accountReq)
 	if err != nil {
+		log.Error("handle CreateUnSignTransaction GetAccount fail", "err", err)
 		return nil, err
 	}
-	nonce, _ := strconv.Atoi(accountInfo.Sequence)
+	nonce, err := strconv.Atoi(accountInfo.Sequence)
+	if err != nil {
+		log.Error("handle CreateUnSignTransaction GetAccount strconv.Atoi(Sequence) fail", "err", err)
+		return nil, err
+	}
 	var gasLimit uint64
 	var contractAddress string
 	if request.ContractAddress == "0x00" {
@@ -204,11 +210,7 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 		TokenId:         request.TokenId,
 		Value:           request.Value,
 	}
-	data, err := json.Marshal(txStructure)
-	if err != nil {
-		log.Error("parse json fail", "err", err)
-		return nil, err
-	}
+	data := json2.ToJSON(txStructure)
 	base64Str := base64.StdEncoding.EncodeToString(data)
 
 	unsignTx := &account.UnSignTransactionRequest{
@@ -217,6 +219,7 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 		Base64Tx: base64Str,
 	}
 	returnTx, err := bws.accountClient.AccountRpClient.CreateUnSignTransaction(context.Background(), unsignTx)
+	log.Info("BusinessMiddleWireServices CreateUnSignTransaction txStructure", json2.ToJSONString(txStructure))
 	if err != nil {
 		log.Error("create un sign transaction fail", "err", err)
 		return nil, err
@@ -230,22 +233,34 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 }
 
 func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Context, request *dal_wallet_go.SignedWithdrawTransactionRequest) (*dal_wallet_go.SignedWithdrawTransactionResponse, error) {
+	resp := &dal_wallet_go.SignedWithdrawTransactionResponse{
+		Code: dal_wallet_go.ReturnCode_ERROR,
+	}
 	var txStructure TxStructure
 	if request.TxType == "withdraw" {
 		tx, err := bws.db.Withdraws.QueryWithdrawsByHash(request.RequestId, request.TransactionId)
 		if err != nil {
 			return nil, err
 		}
+		if tx == nil {
+			resp.Msg = "TransactionId not found"
+			return resp, nil
+		}
 		accountReq := &account.AccountRequest{
-			Chain:   ChainName,
-			Network: Network,
-			Address: tx.FromAddress.String(),
+			Chain:           ChainName,
+			Network:         Network,
+			Address:         tx.FromAddress.String(),
+			ContractAddress: "0x00",
 		}
 		accountInfo, err := bws.accountClient.AccountRpClient.GetAccount(context.Background(), accountReq)
 		if err != nil {
 			return nil, err
 		}
-		nonce, _ := strconv.Atoi(accountInfo.Sequence)
+		nonce, err := strconv.Atoi(accountInfo.Sequence)
+		if err != nil {
+			log.Error("handle BuildSignedTransaction GetAccount strconv.Atoi(Sequence) fail", "err", err)
+			return nil, err
+		}
 		var gasLimit uint64
 		var contractAddress string
 		if tx.TokenAddress.String() == "0x00" || tx.TokenAddress.String() == "0x0000000000000000000000000000000000000000" {
@@ -274,15 +289,20 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			return nil, err
 		}
 		accountReq := &account.AccountRequest{
-			Chain:   ChainName,
-			Network: Network,
-			Address: tx.FromAddress.String(),
+			Chain:           ChainName,
+			Network:         Network,
+			Address:         tx.FromAddress.String(),
+			ContractAddress: "0x00",
 		}
 		accountInfo, err := bws.accountClient.AccountRpClient.GetAccount(context.Background(), accountReq)
 		if err != nil {
 			return nil, err
 		}
-		nonce, _ := strconv.Atoi(accountInfo.Sequence)
+		nonce, err := strconv.Atoi(accountInfo.Sequence)
+		if err != nil {
+			log.Error("handle BuildSignedTransaction GetAccount strconv.Atoi(Sequence) fail", "err", err)
+			return nil, err
+		}
 		var gasLimit uint64
 		var contractAddress string
 		if tx.TokenAddress.String() == "0x00" || tx.TokenAddress.String() == "0x0000000000000000000000000000000000000000" {
@@ -312,11 +332,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			SignedTx: "",
 		}, nil
 	}
-	data, err := json.Marshal(txStructure)
-	if err != nil {
-		log.Error("parse json fail", "err", err)
-		return nil, err
-	}
+	data := json2.ToJSON(txStructure)
 	base64Str := base64.StdEncoding.EncodeToString(data)
 	signedTx := &account.SignedTransactionRequest{
 		Chain:     ChainName,
@@ -324,6 +340,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		Signature: request.Signature,
 		Base64Tx:  base64Str,
 	}
+	log.Info("BusinessMiddleWireServices BuildSignedTransaction txStructure", json2.ToJSONString(txStructure))
 	returnTx, err := bws.accountClient.AccountRpClient.BuildSignedTransaction(context.Background(), signedTx)
 	if err != nil {
 		log.Error("create un sign transaction fail", "err", err)
