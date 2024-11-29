@@ -45,7 +45,7 @@ func (w *Internal) Close() error {
 	w.ticker.Stop()
 	log.Info("stop internal......")
 	if err := w.tasks.Wait(); err != nil {
-		result = errors.Join(result, fmt.Errorf("failed to await internal %w"), err)
+		result = errors.Join(result, fmt.Errorf("failed to await internal %w", err))
 		return result
 	}
 	log.Info("stop internal success")
