@@ -51,7 +51,7 @@ message ExportAddressesResponse {
 message UnSignWithdrawTransactionRequest {
   string consumer_token = 1;
   string request_id = 2;
-  string chain_id =3;
+  string chain_id = 3;
   string chain = 4;
   string from = 5;
   string to = 6;
@@ -73,7 +73,7 @@ message SignedWithdrawTransactionRequest {
   string consumer_token = 1;
   string request_id = 2;
   string chain = 3;
-  string chain_id =4;
+  string chain_id = 4;
   string transaction_id = 5;
   string signature = 6;
   string tx_type = 7;
@@ -92,7 +92,7 @@ message SetTokenAddressRequest{
 }
 
 message SetTokenAddressResponse {
-   ReturnCode code = 1;
+  ReturnCode code = 1;
   string msg = 2;
 }
 

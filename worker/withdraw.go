@@ -45,7 +45,7 @@ func (w *Withdraw) Close() error {
 	w.ticker.Stop()
 	log.Info("stop withdraw......")
 	if err := w.tasks.Wait(); err != nil {
-		result = errors.Join(result, fmt.Errorf("failed to await withdraw %w"), err)
+		result = errors.Join(result, fmt.Errorf("failed to await withdraw %w", err))
 		return result
 	}
 	log.Info("stop withdraw success")
@@ -70,6 +70,10 @@ func (w *Withdraw) Start() error {
 						log.Error("Query un send withdraws list fail", "err", err)
 						continue
 					}
+					if len(unSendTransactionList) == 0 {
+						log.Error("Withdraw Start", "businessId", businessId, "unSendTransactionList", "is null")
+						continue
+					}
 
 					var balanceList []database.Balances
 
@@ -85,8 +89,8 @@ func (w *Withdraw) Start() error {
 							log.Error("send transaction fail", "err", err)
 							continue
 						} else {
-							unSendTransaction.Hash = common.HexToHash(txHash)
-							unSendTransaction.Status = 2
+							unSendTransaction.TxHash = common.HexToHash(txHash)
+							unSendTransaction.Status = database.TxStatusBroadcasted
 						}
 					}
 

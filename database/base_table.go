@@ -17,6 +17,7 @@ type createTableDB struct {
 func NewCreateTableDB(db *gorm.DB) CreateTableDB {
 	return &createTableDB{gorm: db}
 }
+
 func (dao *createTableDB) CreateTable(tableName, realTableName string) {
 	err := dao.gorm.Exec("CREATE TABLE IF NOT EXISTS " + tableName + "(like " + realTableName + " including all)").Error
 	if err != nil {

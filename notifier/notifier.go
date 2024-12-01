@@ -138,21 +138,21 @@ func (nf *Notifier) Stopped() bool {
 
 func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySuccess bool, deposits []database.Deposits, withdraws []database.Withdraws, internals []database.Internals) error {
 	var depositsNotifyStatus uint8
-	var withdrawNotifyStatus uint8
-	var internalNotifyStatus uint8
+	var withdrawNotifyStatus database.TxStatus
+	var internalNotifyStatus database.TxStatus
 	if isBefore {
 		depositsNotifyStatus = 2
-		withdrawNotifyStatus = 4
-		internalNotifyStatus = 4
+		withdrawNotifyStatus = database.TxStatusNotified
+		internalNotifyStatus = database.TxStatusNotified
 	} else {
 		if notifySuccess {
 			depositsNotifyStatus = 3
-			withdrawNotifyStatus = 5
-			internalNotifyStatus = 5
+			withdrawNotifyStatus = database.TxStatusSuccess
+			internalNotifyStatus = database.TxStatusSuccess
 		} else {
 			depositsNotifyStatus = 1
-			withdrawNotifyStatus = 3
-			internalNotifyStatus = 3
+			withdrawNotifyStatus = database.TxStatusWalletDone
+			internalNotifyStatus = database.TxStatusWalletDone
 		}
 	}
 	// 过滤状态为 0 的交易
@@ -177,7 +177,7 @@ func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySu
 			}
 
 			if len(internals) > 0 {
-				if err := tx.Internals.UpdateInternalstatus(businessId, internalNotifyStatus, internals); err != nil {
+				if err := tx.Internals.UpdateInternalStatus(businessId, internalNotifyStatus, internals); err != nil {
 					return err
 				}
 			}
@@ -215,13 +215,14 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 
 	for _, withdraw := range withdraws {
 		txItem := Transaction{
-			BlockHash:    withdraw.BlockHash.String(),
-			BlockNumber:  withdraw.BlockNumber.Uint64(),
-			Hash:         withdraw.Hash.String(),
-			FromAddress:  withdraw.FromAddress.String(),
-			ToAddress:    withdraw.ToAddress.String(),
-			Value:        withdraw.Amount.String(),
-			Fee:          withdraw.Fee.String(),
+			BlockHash:   withdraw.BlockHash.String(),
+			BlockNumber: withdraw.BlockNumber.Uint64(),
+			Hash:        withdraw.TxHash.String(),
+			FromAddress: withdraw.FromAddress.String(),
+			ToAddress:   withdraw.ToAddress.String(),
+			Value:       withdraw.Amount.String(),
+			// todo:
+			//Fee:          withdraw.Fee.String(),
 			TxType:       "withdraw",
 			Confirms:     0,
 			TokenAddress: withdraw.TokenAddress.String(),
@@ -233,14 +234,15 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 
 	for _, internal := range internals {
 		txItem := Transaction{
-			BlockHash:    internal.BlockHash.String(),
-			BlockNumber:  internal.BlockNumber.Uint64(),
-			Hash:         internal.Hash.String(),
-			FromAddress:  internal.FromAddress.String(),
-			ToAddress:    internal.ToAddress.String(),
-			Value:        internal.Amount.String(),
-			Fee:          internal.Fee.String(),
-			TxType:       internal.TxType,
+			BlockHash:   internal.BlockHash.String(),
+			BlockNumber: internal.BlockNumber.Uint64(),
+			Hash:        internal.TxHash.String(),
+			FromAddress: internal.FromAddress.String(),
+			ToAddress:   internal.ToAddress.String(),
+			Value:       internal.Amount.String(),
+			// todo:
+			//Fee:          withdraw.Fee.String(),
+			TxType:       "withdraw",
 			Confirms:     0,
 			TokenAddress: internal.TokenAddress.String(),
 			TokenId:      internal.TokenId,
