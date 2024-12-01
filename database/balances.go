@@ -117,7 +117,7 @@ func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalanc
 				log.Error("Query user address fail", "err", err)
 				return err
 			}
-			hotWalletAddress.Balance = new(big.Int).Sub(hotWalletAddress.Balance, value.Balance)
+			hotWalletAddress.Balance = new(big.Int).Sub(hotWalletAddress.LockBalance, value.Balance)
 			errU := db.gorm.Table("balances_" + requestId).Save(&hotWalletAddress).Error
 			if errU != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
@@ -129,7 +129,7 @@ func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalanc
 				log.Error("Query user address fail", "err", err)
 				return err
 			}
-			userWalletAddress.Balance = new(big.Int).Sub(userWalletAddress.Balance, value.Balance)
+			userWalletAddress.Balance = new(big.Int).Sub(userWalletAddress.LockBalance, value.Balance)
 			errU := db.gorm.Table("balances_" + requestId).Save(&userWalletAddress).Error
 			if errU != nil {
 				log.Error("Update user balance fail", "err", err)
@@ -142,7 +142,7 @@ func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalanc
 				return err
 			}
 			hotWalletAddress.Balance = new(big.Int).Add(hotWalletAddress.Balance, value.Balance)
-			errHot := db.gorm.Table("balances_" + requestId).Save(&userWalletAddress).Error
+			errHot := db.gorm.Table("balances_" + requestId).Save(&hotWalletAddress).Error
 			if errHot != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
 				return errHot
@@ -153,7 +153,7 @@ func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalanc
 				log.Error("Query hot wallet info fail", "err", err)
 				return err
 			}
-			hotWalletAddress.Balance = new(big.Int).Sub(hotWalletAddress.Balance, value.Balance)
+			hotWalletAddress.Balance = new(big.Int).Sub(hotWalletAddress.LockBalance, value.Balance)
 			errHot := db.gorm.Table("balances_" + requestId).Save(&hotWalletAddress).Error
 			if errHot != nil {
 				log.Error("Update user balance fail", "err", err)
@@ -177,7 +177,7 @@ func (db *balancesDB) UpdateOrCreate(requestId string, balanceList []TokenBalanc
 				log.Error("Query hot wallet balance fail", "err", err)
 				return err
 			}
-			coldWalletAddress.Balance = new(big.Int).Sub(coldWalletAddress.Balance, value.Balance)
+			coldWalletAddress.Balance = new(big.Int).Sub(coldWalletAddress.LockBalance, value.Balance)
 			errCold := db.gorm.Table("balances_" + requestId).Save(&coldWalletAddress).Error
 			if errCold != nil {
 				log.Error("Update hot wallet balance fail", "err", err)
