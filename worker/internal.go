@@ -87,8 +87,8 @@ func (w *Internal) Start() error {
 							log.Error("send transaction fail", "err", err)
 							continue
 						} else {
-							unSendInternalTx.Hash = common.HexToHash(txHash)
-							unSendInternalTx.Status = 2
+							unSendInternalTx.TxHash = common.HexToHash(txHash)
+							unSendInternalTx.Status = database.TxStatusBroadcasted
 						}
 					}
 
@@ -104,7 +104,7 @@ func (w *Internal) Start() error {
 
 							}
 							if len(unSendInternalTxList) > 0 {
-								err = w.db.Internals.UpdateInternalstatus(businessId.BusinessUid, 3, unSendInternalTxList)
+								err = w.db.Internals.UpdateInternalStatus(businessId.BusinessUid, database.TxStatusWalletDone, unSendInternalTxList)
 								if err != nil {
 									log.Error("update internals status fail", "err", err)
 									return err

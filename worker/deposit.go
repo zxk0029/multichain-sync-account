@@ -201,13 +201,13 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 				}
 
 				if len(withdrawList) > 0 {
-					if err := tx.Withdraws.UpdateWithdrawStatus(business.BusinessUid, 3, withdrawList); err != nil {
+					if err := tx.Withdraws.UpdateWithdrawStatus(business.BusinessUid, database.TxStatusWalletDone, withdrawList); err != nil {
 						return err
 					}
 				}
 
 				if len(internals) > 0 {
-					if err := tx.Internals.UpdateInternalstatus(business.BusinessUid, 3, internals); err != nil {
+					if err := tx.Internals.UpdateInternalStatus(business.BusinessUid, database.TxStatusWalletDone, internals); err != nil {
 						return err
 					}
 				}
@@ -252,22 +252,23 @@ func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage)
 }
 
 func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage) (database.Withdraws, error) {
-	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
+	//txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
 	withdrawTx := database.Withdraws{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
-		Hash:         common.HexToHash(tx.Hash),
+		TxHash:       common.HexToHash(tx.Hash),
 		FromAddress:  common.HexToAddress(tx.FromAddress),
 		ToAddress:    common.HexToAddress(tx.ToAddress),
 		TokenAddress: common.HexToAddress(tx.TokenAddress),
 		TokenId:      "0x00",
 		TokenMeta:    "0x00",
-		Fee:          txFee,
-		Amount:       txAmount,
-		Status:       2,
-		Timestamp:    uint64(time.Now().Unix()),
+		// todo
+		//Fee:          txFee,
+		Amount:    txAmount,
+		Status:    2,
+		Timestamp: uint64(time.Now().Unix()),
 	}
 	return withdrawTx, nil
 }
@@ -295,23 +296,22 @@ func (deposit *Deposit) HandleTransaction(tx *Transaction, txMsg *account.TxMess
 }
 
 func (deposit *Deposit) HandleInternalTx(tx *Transaction, txMsg *account.TxMessage) (database.Internals, error) {
-	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
+	//txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
 	internalTx := database.Internals{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
-		Hash:         common.HexToHash(tx.Hash),
+		TxHash:       common.HexToHash(tx.Hash),
 		FromAddress:  common.HexToAddress(tx.FromAddress),
 		ToAddress:    common.HexToAddress(tx.ToAddress),
 		TokenAddress: common.HexToAddress(tx.TokenAddress),
 		TokenId:      "0x00",
 		TokenMeta:    "0x00",
-		Fee:          txFee,
-		Status:       uint8(txMsg.Status),
-		Amount:       txAmount,
-		TxType:       tx.TxType,
-		Timestamp:    uint64(time.Now().Unix()),
+		//Fee:          txFee,
+		Status:    database.TxStatus(uint8(txMsg.Status)),
+		Amount:    txAmount,
+		Timestamp: uint64(time.Now().Unix()),
 	}
 	return internalTx, nil
 }

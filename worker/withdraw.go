@@ -89,8 +89,8 @@ func (w *Withdraw) Start() error {
 							log.Error("send transaction fail", "err", err)
 							continue
 						} else {
-							unSendTransaction.Hash = common.HexToHash(txHash)
-							unSendTransaction.Status = 2
+							unSendTransaction.TxHash = common.HexToHash(txHash)
+							unSendTransaction.Status = database.TxStatusBroadcasted
 						}
 					}
 
