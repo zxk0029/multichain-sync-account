@@ -72,10 +72,10 @@ func (w *Internal) Start() error {
 						continue
 					}
 
-					var balanceList []database.Balances
+					var balanceList []*database.Balances
 
 					for _, unSendInternalTx := range unSendInternalTxList {
-						balanceItem := database.Balances{
+						balanceItem := &database.Balances{
 							TokenAddress: unSendInternalTx.TokenAddress,
 							Address:      unSendInternalTx.FromAddress,
 							LockBalance:  unSendInternalTx.Amount,
@@ -97,14 +97,14 @@ func (w *Internal) Start() error {
 						if err := w.db.Transaction(func(tx *database.DB) error {
 							if len(balanceList) > 0 {
 								log.Info("Update address balance", "totalTx", len(balanceList))
-								if err := tx.Balances.UpdateBalances(businessId.BusinessUid, balanceList); err != nil {
+								if err := tx.Balances.UpdateBalanceList(businessId.BusinessUid, balanceList); err != nil {
 									log.Error("Update address balance fail", "err", err)
 									return err
 								}
 
 							}
 							if len(unSendInternalTxList) > 0 {
-								err = w.db.Internals.UpdateInternalStatus(businessId.BusinessUid, database.TxStatusWalletDone, unSendInternalTxList)
+								err = w.db.Internals.UpdateInternalStatus(businessId.BusinessUid, database.TxStatusBroadcasted, unSendInternalTxList)
 								if err != nil {
 									log.Error("update internals status fail", "err", err)
 									return err

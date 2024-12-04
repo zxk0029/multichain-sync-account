@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/google/uuid"
 
 	"github.com/dapplink-labs/multichain-sync-account/common/json2"
 	"github.com/dapplink-labs/multichain-sync-account/database"
@@ -30,6 +29,7 @@ const (
 var (
 	EthGasLimit   uint64 = 60000
 	TokenGasLimit uint64 = 120000
+	Min1Gwei      uint64 = 1000000000
 	//maxFeePerGas                = "135177480"
 	//maxPriorityFeePerGas        = "535177480"
 )
@@ -65,30 +65,35 @@ func (bws *BusinessMiddleWireServices) BusinessRegister(ctx context.Context, req
 func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.Context, request *dal_wallet_go.ExportAddressesRequest) (*dal_wallet_go.ExportAddressesResponse, error) {
 	var (
 		retAddressess []*dal_wallet_go.Address
-		dbAddresses   []database.Addresses
-		balances      []database.Balances
+		dbAddresses   []*database.Addresses
+		balances      []*database.Balances
 	)
 
 	for _, value := range request.PublicKeys {
-		address := bws.accountClient.ExportAddressByPubKey(strconv.Itoa(int(value.Type)), value.PublicKey)
+		address := bws.accountClient.ExportAddressByPubKey("", value.PublicKey)
 		item := &dal_wallet_go.Address{
 			Type:    value.Type,
 			Address: address,
 		}
-		dbAddress := database.Addresses{
+		parseAddressType, err := database.ParseAddressType(value.Type)
+		if err != nil {
+			log.Error("handle ParseAddressType fail", "type", value.Type, "err", err)
+			return nil, err
+		}
+		dbAddress := &database.Addresses{
 			GUID:        uuid.New(),
 			Address:     common.HexToAddress(address),
-			AddressType: uint8(value.Type),
+			AddressType: parseAddressType,
 			PublicKey:   value.PublicKey,
 			Timestamp:   uint64(time.Now().Unix()),
 		}
 		dbAddresses = append(dbAddresses, dbAddress)
 
-		balanceItem := database.Balances{
+		balanceItem := &database.Balances{
 			GUID:         uuid.New(),
 			Address:      common.HexToAddress(address),
 			TokenAddress: common.Address{},
-			AddressType:  uint8(value.Type),
+			AddressType:  parseAddressType,
 			Balance:      big.NewInt(0),
 			LockBalance:  big.NewInt(0),
 			Timestamp:    uint64(time.Now().Unix()),
@@ -228,7 +233,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		maxPriorityFeePerGas = tx.MaxPriorityFeePerGas
 
 	case "collection", "hot2cold":
-		tx, err := bws.db.Internals.QueryInternalsByHash(request.RequestId, request.TransactionId)
+		tx, err := bws.db.Internals.QueryInternalsByTxHash(request.RequestId, request.TransactionId)
 		if err != nil {
 			return nil, fmt.Errorf("query internal failed: %w", err)
 		}
@@ -375,7 +380,7 @@ func ParseFastFee(fastFee string) (*FeeInfo, error) {
 		big.NewInt(multiplier),
 	)
 	// 设置最小小费阈值 (1 Gwei)
-	minTipCap := big.NewInt(1000000000)
+	minTipCap := big.NewInt(int64(Min1Gwei))
 	if multipliedTip.Cmp(minTipCap) < 0 {
 		multipliedTip = minTipCap
 	}
@@ -466,7 +471,7 @@ func (bws *BusinessMiddleWireServices) storeWithdraw(request *dal_wallet_go.UnSi
 	withdraw := &database.Withdraws{
 		GUID:                 transactionId,
 		Timestamp:            uint64(time.Now().Unix()),
-		Status:               database.TxStatusUnsigned,
+		Status:               database.TxStatusCreateUnsigned,
 		BlockHash:            common.Hash{},
 		BlockNumber:          big.NewInt(1),
 		TxHash:               common.Hash{},
@@ -493,7 +498,7 @@ func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSi
 	internal := &database.Internals{
 		GUID:                 transactionId,
 		Timestamp:            uint64(time.Now().Unix()),
-		Status:               database.TxStatusUnsigned,
+		Status:               database.TxStatusCreateUnsigned,
 		BlockHash:            common.Hash{},
 		BlockNumber:          big.NewInt(1),
 		TxHash:               common.Hash{},

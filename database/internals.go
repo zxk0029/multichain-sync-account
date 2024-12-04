@@ -43,17 +43,17 @@ type Internals struct {
 }
 
 type InternalsView interface {
-	QueryNotifyInternal(requestId string) ([]Internals, error)
-	QueryInternalsByHash(requestId string, txId string) (*Internals, error)
-	UnSendInternalsList(requestId string) ([]Internals, error)
+	QueryNotifyInternal(requestId string) ([]*Internals, error)
+	QueryInternalsByTxHash(requestId string, txHash string) (*Internals, error)
+	UnSendInternalsList(requestId string) ([]*Internals, error)
 }
 
 type InternalsDB interface {
 	InternalsView
 
 	StoreInternal(string, *Internals) error
-	UpdateInternalTx(requestId string, transactionId string, signedTx string, status TxStatus) error
-	UpdateInternalStatus(requestId string, status TxStatus, internalsList []Internals) error
+	UpdateInternalTx(requestId string, txHash string, signedTx string, status TxStatus) error
+	UpdateInternalStatus(requestId string, status TxStatus, internalsList []*Internals) error
 }
 
 type internalsDB struct {
@@ -64,8 +64,8 @@ func NewInternalsDB(db *gorm.DB) InternalsDB {
 	return &internalsDB{gorm: db}
 }
 
-func (db *internalsDB) QueryNotifyInternal(requestId string) ([]Internals, error) {
-	var notifyInternals []Internals
+func (db *internalsDB) QueryNotifyInternal(requestId string) ([]*Internals, error) {
+	var notifyInternals []*Internals
 	result := db.gorm.Table("internals_"+requestId).
 		Where("status = ?", TxStatusWalletDone).
 		Find(&notifyInternals)
@@ -79,10 +79,10 @@ func (db *internalsDB) StoreInternal(requestId string, internals *Internals) err
 	return db.gorm.Table("internals_" + requestId).Create(internals).Error
 }
 
-func (db *internalsDB) QueryInternalsByHash(requestId string, txId string) (*Internals, error) {
+func (db *internalsDB) QueryInternalsByTxHash(requestId string, txHash string) (*Internals, error) {
 	var internalsEntity Internals
 	result := db.gorm.Table("internals_"+requestId).
-		Where("guid = ?", txId).
+		Where("hash = ?", txHash).
 		Take(&internalsEntity)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -93,8 +93,8 @@ func (db *internalsDB) QueryInternalsByHash(requestId string, txId string) (*Int
 	return &internalsEntity, nil
 }
 
-func (db *internalsDB) UnSendInternalsList(requestId string) ([]Internals, error) {
-	var internalsList []Internals
+func (db *internalsDB) UnSendInternalsList(requestId string) ([]*Internals, error) {
+	var internalsList []*Internals
 	err := db.gorm.Table("internals_"+requestId).
 		Where("status = ?", TxStatusSigned).
 		Find(&internalsList).Error
@@ -110,7 +110,7 @@ type GasInfo struct {
 	MaxPriorityFeePerGas string
 }
 
-func (db *internalsDB) UpdateInternalTx(requestId string, transactionId string, signedTx string, status TxStatus) error {
+func (db *internalsDB) UpdateInternalTx(requestId string, txHash string, signedTx string, status TxStatus) error {
 	updates := map[string]interface{}{
 		"status": status,
 	}
@@ -120,7 +120,7 @@ func (db *internalsDB) UpdateInternalTx(requestId string, transactionId string, 
 	}
 
 	result := db.gorm.Table("internals_"+requestId).
-		Where("guid = ?", transactionId).
+		Where("hash = ?", txHash).
 		Updates(updates)
 
 	if result.Error != nil {
@@ -134,20 +134,20 @@ func (db *internalsDB) UpdateInternalTx(requestId string, transactionId string, 
 	return nil
 }
 
-func (db *internalsDB) UpdateInternalStatus(requestId string, status TxStatus, internalsList []Internals) error {
+func (db *internalsDB) UpdateInternalStatus(requestId string, status TxStatus, internalsList []*Internals) error {
 	if len(internalsList) == 0 {
 		return nil
 	}
 	tableName := fmt.Sprintf("internals_%s", requestId)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
-		var guids []uuid.UUID
+		var txHashList []string
 		for _, internal := range internalsList {
-			guids = append(guids, internal.GUID)
+			txHashList = append(txHashList, internal.TxHash.String())
 		}
 
 		result := tx.Table(tableName).
-			Where("guid IN ?", guids).
+			Where("hash IN ?", txHashList).
 			Where("status = ?", TxStatusWalletDone).
 			Update("status", status)
 

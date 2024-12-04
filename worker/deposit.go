@@ -103,6 +103,7 @@ func (deposit *Deposit) Start() error {
 		for batch := range deposit.businessChannels {
 			log.Info("deposit business channel", "batch length", len(batch))
 			if err := deposit.handleBatch(batch); err != nil {
+				log.Info("failed to handle batch, stopping L2 Synchronizer:", "err", err)
 				return fmt.Errorf("failed to handle batch, stopping L2 Synchronizer: %w", err)
 			}
 		}
@@ -124,11 +125,11 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 		}
 
 		var (
-			transactionFlowList []database.Transactions
-			depositList         []database.Deposits
-			withdrawList        []database.Withdraws
-			internals           []database.Internals
-			balances            []database.TokenBalance
+			transactionFlowList []*database.Transactions
+			depositList         []*database.Deposits
+			withdrawList        []*database.Withdraws
+			internals           []*database.Internals
+			balances            []*database.TokenBalance
 		)
 
 		log.Info("handle business flow", "businessId", business.BusinessUid, "chainLatestBlock", batch[business.BusinessUid].BlockHeight, "txn", len(batch[business.BusinessUid].Transactions))
@@ -144,7 +145,7 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			log.Info("Transaction amount", "amountBigInt", amountBigInt, "FromAddress", tx.FromAddress, "TokenAddress", tx.TokenAddress, "TokenAddress", tx.ToAddress)
 			balances = append(
 				balances,
-				database.TokenBalance{
+				&database.TokenBalance{
 					FromAddress:  common.HexToAddress(tx.FromAddress),
 					ToAddress:    common.HexToAddress(txItem.Tos[0].Address),
 					TokenAddress: common.HexToAddress(txItem.ContractAddress),
@@ -154,7 +155,7 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			)
 
 			log.Info("get transaction success", "txHash", txItem.Hash)
-			transactionFlow, err := deposit.HandleTransaction(tx, txItem)
+			transactionFlow, err := deposit.BuildTransaction(tx, txItem)
 			if err != nil {
 				log.Info("handle  transaction fail", "err", err)
 				return err
@@ -183,7 +184,7 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			if err := deposit.database.Transaction(func(tx *database.DB) error {
 				if len(depositList) > 0 {
 					log.Info("Store deposit transaction success", "totalTx", len(depositList))
-					if err := tx.Deposits.StoreDeposits(business.BusinessUid, depositList, uint64(len(depositList))); err != nil {
+					if err := tx.Deposits.StoreDeposits(business.BusinessUid, depositList); err != nil {
 						return err
 					}
 				}
@@ -230,10 +231,10 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 	return nil
 }
 
-func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage) (database.Deposits, error) {
+func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage) (*database.Deposits, error) {
 	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	depositTx := database.Deposits{
+	depositTx := &database.Deposits{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
@@ -245,16 +246,16 @@ func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage)
 		TokenMeta:    "0x00",
 		Fee:          txFee,
 		Amount:       txAmount,
-		Status:       0,
+		Status:       database.DepositStatusPending,
 		Timestamp:    uint64(time.Now().Unix()),
 	}
 	return depositTx, nil
 }
 
-func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage) (database.Withdraws, error) {
+func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage) (*database.Withdraws, error) {
 	//txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	withdrawTx := database.Withdraws{
+	withdrawTx := &database.Withdraws{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
@@ -267,16 +268,16 @@ func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage
 		// todo
 		//Fee:          txFee,
 		Amount:    txAmount,
-		Status:    2,
+		Status:    database.TxStatusBroadcasted,
 		Timestamp: uint64(time.Now().Unix()),
 	}
 	return withdrawTx, nil
 }
 
-func (deposit *Deposit) HandleTransaction(tx *Transaction, txMsg *account.TxMessage) (database.Transactions, error) {
+func (deposit *Deposit) BuildTransaction(tx *Transaction, txMsg *account.TxMessage) (*database.Transactions, error) {
 	txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	transationTx := database.Transactions{
+	transationTx := &database.Transactions{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
@@ -295,10 +296,10 @@ func (deposit *Deposit) HandleTransaction(tx *Transaction, txMsg *account.TxMess
 	return transationTx, nil
 }
 
-func (deposit *Deposit) HandleInternalTx(tx *Transaction, txMsg *account.TxMessage) (database.Internals, error) {
+func (deposit *Deposit) HandleInternalTx(tx *Transaction, txMsg *account.TxMessage) (*database.Internals, error) {
 	//txFee, _ := new(big.Int).SetString(txMsg.Fee, 10)
 	txAmount, _ := new(big.Int).SetString(txMsg.Values[0].Value, 10)
-	internalTx := database.Internals{
+	internalTx := &database.Internals{
 		GUID:         uuid.New(),
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,

@@ -23,13 +23,17 @@ func NewWalletChainAccountClient(ctx context.Context, rpc account.WalletAccountS
 	return &WalletChainAccountClient{Ctx: ctx, AccountRpClient: rpc, ChainName: chainName}, nil
 }
 
-func (wac *WalletChainAccountClient) ExportAddressByPubKey(method, publicKey string) string {
+func (wac *WalletChainAccountClient) ExportAddressByPubKey(typeOrVersion, publicKey string) string {
 	req := &account.ConvertAddressRequest{
 		Chain:     wac.ChainName,
-		Type:      method,
+		Type:      typeOrVersion,
 		PublicKey: publicKey,
 	}
 	address, err := wac.AccountRpClient.ConvertAddress(wac.Ctx, req)
+	if err != nil {
+		log.Error("covert address fail", "err", err)
+		return ""
+	}
 	if address.Code == common.ReturnCode_ERROR {
 		log.Error("covert address fail", "err", err)
 		return ""

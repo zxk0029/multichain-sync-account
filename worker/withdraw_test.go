@@ -20,22 +20,9 @@ const (
 	txId       = "f9cb8657-553b-4456-a6de-f021b949c692"
 )
 
-func setupDb() *database.DB {
-	dbConfig := config.DBConfig{
-		Host:     "127.0.0.1",
-		Port:     5432,
-		Name:     "multichain",
-		User:     "postgres",
-		Password: "123456",
-	}
-
-	newDB, _ := database.NewDB(context.Background(), dbConfig)
-	return newDB
-}
-
 func setupWithdraw(t *testing.T) *Withdraw {
 	// 设置数据库
-	db := setupDb()
+	db := database.SetupDb()
 
 	// 设置 gRPC 连接
 	conn, err := grpc.NewClient("127.0.0.1:8189", grpc.WithTransportCredentials(insecure.NewCredentials()))

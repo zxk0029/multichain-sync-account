@@ -44,9 +44,9 @@ type Withdraws struct {
 }
 
 type WithdrawsView interface {
-	QueryNotifyWithdraws(requestId string) ([]Withdraws, error)
+	QueryNotifyWithdraws(requestId string) ([]*Withdraws, error)
 	QueryWithdrawsByHash(requestId string, txId string) (*Withdraws, error)
-	UnSendWithdrawsList(requestId string) ([]Withdraws, error)
+	UnSendWithdrawsList(requestId string) ([]*Withdraws, error)
 
 	SubmitWithdrawFromBusiness(requestId string, withdraw *Withdraws) error
 }
@@ -56,15 +56,15 @@ type WithdrawsDB interface {
 
 	StoreWithdraw(string, *Withdraws) error
 	UpdateWithdrawTx(requestId string, transactionId string, signedTx string, status TxStatus) error
-	UpdateWithdrawStatus(requestId string, status TxStatus, withdrawsList []Withdraws) error
+	UpdateWithdrawStatus(requestId string, status TxStatus, withdrawsList []*Withdraws) error
 }
 
 type withdrawsDB struct {
 	gorm *gorm.DB
 }
 
-func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]Withdraws, error) {
-	var notifyWithdraws []Withdraws
+func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]*Withdraws, error) {
+	var notifyWithdraws []*Withdraws
 	result := db.gorm.Table("withdraws_"+requestId).
 		Where("status = ?", TxStatusWalletDone).
 		Find(&notifyWithdraws)
@@ -76,8 +76,8 @@ func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]Withdraws, erro
 	return notifyWithdraws, nil
 }
 
-func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]Withdraws, error) {
-	var withdrawsList []Withdraws
+func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]*Withdraws, error) {
+	var withdrawsList []*Withdraws
 	err := db.gorm.Table("withdraws_"+requestId).
 		Where("status = ?", TxStatusSigned).
 		Find(&withdrawsList).Error
@@ -105,7 +105,7 @@ func (db *withdrawsDB) SubmitWithdrawFromBusiness(requestId string, withdraw *Wi
 	// 1. 设置基础字段
 	withdraw.GUID = uuid.New()
 	withdraw.Timestamp = uint64(time.Now().Unix())
-	withdraw.Status = TxStatusUnsigned
+	withdraw.Status = TxStatusCreateUnsigned
 
 	// 2. 初始化区块信息
 	withdraw.BlockHash = common.Hash{}
@@ -177,7 +177,7 @@ func (db *withdrawsDB) StoreWithdraw(requestId string, withdrawsList *Withdraws)
 	return result.Error
 }
 
-func (db *withdrawsDB) UpdateWithdrawStatus(requestId string, status TxStatus, withdrawsList []Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawStatus(requestId string, status TxStatus, withdrawsList []*Withdraws) error {
 	if len(withdrawsList) == 0 {
 		return nil
 	}

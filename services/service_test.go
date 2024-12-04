@@ -88,6 +88,56 @@ func TestBusinessMiddleWireServices_BusinessRegister(t *testing.T) {
 	})
 }
 
+func TestBusinessMiddleWireServices_ExportAddressesByPublicKeys(t *testing.T) {
+	// 准备测试环境
+	bws := setup(t)
+	ctx := context.Background()
+
+	// 测试成功导出地址
+	t.Run("successful export addresses", func(t *testing.T) {
+		// 构造请求
+		request := &dal_wallet_go.ExportAddressesRequest{
+			ConsumerToken: "test_token",
+			RequestId:     CurrentRequestId,
+			PublicKeys: []*dal_wallet_go.PublicKey{
+				{
+					Type:      "eoa",
+					PublicKey: "047b40b2707107640641c983919bfff36946849df442564a9bccc577680898c7449546e54eb4a2f63bfe8f061c9d7b7f6669a3154479746cc8e0d7c6ca2d490e6a",
+				},
+				{
+					Type:      "hot",
+					PublicKey: "0422d39a1208b314bbbae7545c0b415167386d448ba9777b526e56d458db2f9f70d72f89373b7f53dfc9f0ff6aa55ae736fe2160d7ddd8be470250dd23fae9b0bc",
+				},
+				{
+					Type:      "cold",
+					PublicKey: "047b40b2707107640641c983919bfff36946849df442564a9bccc577680898c7449546e54eb4a2f63bfe8f061c9d7b7f6669a3154479746cc8e0d7c6ca2d490e6a",
+				},
+			},
+		}
+
+		// 执行测试
+		response, err := bws.ExportAddressesByPublicKeys(ctx, request)
+
+		// 打印响应详情
+		respJSON := json2.ToPrettyJSON(response)
+		t.Logf("Response:\n%s", respJSON)
+
+		// 验证结果
+		assert.NoError(t, err)
+		assert.NotNil(t, response)
+		assert.Equal(t, dal_wallet_go.ReturnCode_SUCCESS, response.Code)
+		assert.NotEmpty(t, response.Addresses)
+		assert.Equal(t, len(request.PublicKeys), len(response.Addresses))
+
+		// 验证每个地址的格式和类型
+		for _, addr := range response.Addresses {
+			assert.Equal(t, uint32(1), addr.Type) // 验证地址类型
+			assert.True(t, strings.HasPrefix(addr.Address, "0x"))
+			assert.Equal(t, 42, len(addr.Address)) // 以太坊地址长度为42（包含"0x"前缀）
+		}
+	})
+}
+
 func TestBusinessMiddleWireServices_CreateUnSignTransaction_ETHTransfer(t *testing.T) {
 	// 准备测试环境
 	bws := setup(t)

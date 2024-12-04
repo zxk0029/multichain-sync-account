@@ -136,29 +136,29 @@ func (nf *Notifier) Stopped() bool {
 	return nf.stopped.Load()
 }
 
-func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySuccess bool, deposits []database.Deposits, withdraws []database.Withdraws, internals []database.Internals) error {
-	var depositsNotifyStatus uint8
+func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySuccess bool, deposits []*database.Deposits, withdraws []*database.Withdraws, internals []*database.Internals) error {
+	var depositsNotifyStatus database.DepositStatus
 	var withdrawNotifyStatus database.TxStatus
 	var internalNotifyStatus database.TxStatus
 	if isBefore {
-		depositsNotifyStatus = 2
+		depositsNotifyStatus = database.DepositStatusBusinessDone
 		withdrawNotifyStatus = database.TxStatusNotified
 		internalNotifyStatus = database.TxStatusNotified
 	} else {
 		if notifySuccess {
-			depositsNotifyStatus = 3
+			depositsNotifyStatus = database.DepositStatusCompleted
 			withdrawNotifyStatus = database.TxStatusSuccess
 			internalNotifyStatus = database.TxStatusSuccess
 		} else {
-			depositsNotifyStatus = 1
+			depositsNotifyStatus = database.DepositStatusWalletDone
 			withdrawNotifyStatus = database.TxStatusWalletDone
 			internalNotifyStatus = database.TxStatusWalletDone
 		}
 	}
 	// 过滤状态为 0 的交易
-	var updateStutusDepositTxn []database.Deposits
+	var updateStutusDepositTxn []*database.Deposits
 	for _, deposit := range deposits {
-		if deposit.Status != 0 {
+		if deposit.Status != database.DepositStatusPending {
 			updateStutusDepositTxn = append(updateStutusDepositTxn, deposit)
 		}
 	}
@@ -193,10 +193,10 @@ func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySu
 	return nil
 }
 
-func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdraws []database.Withdraws, internals []database.Internals) (*NotifyRequest, error) {
-	var notifyTransactions []Transaction
+func (nf *Notifier) BuildNotifyTransaction(deposits []*database.Deposits, withdraws []*database.Withdraws, internals []*database.Internals) (*NotifyRequest, error) {
+	var notifyTransactions []*Transaction
 	for _, deposit := range deposits {
-		txItem := Transaction{
+		txItem := &Transaction{
 			BlockHash:    deposit.BlockHash.String(),
 			BlockNumber:  deposit.BlockNumber.Uint64(),
 			Hash:         deposit.Hash.String(),
@@ -204,7 +204,7 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 			ToAddress:    deposit.ToAddress.String(),
 			Value:        deposit.Amount.String(),
 			Fee:          deposit.Fee.String(),
-			TxType:       "deposit",
+			TxType:       database.TxTypeDeposit,
 			Confirms:     deposit.Confirms,
 			TokenAddress: deposit.TokenAddress.String(),
 			TokenId:      deposit.TokenId,
@@ -214,7 +214,7 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 	}
 
 	for _, withdraw := range withdraws {
-		txItem := Transaction{
+		txItem := &Transaction{
 			BlockHash:   withdraw.BlockHash.String(),
 			BlockNumber: withdraw.BlockNumber.Uint64(),
 			Hash:        withdraw.TxHash.String(),
@@ -223,7 +223,7 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 			Value:       withdraw.Amount.String(),
 			// todo:
 			//Fee:          withdraw.Fee.String(),
-			TxType:       "withdraw",
+			TxType:       database.TxTypeWithdraw,
 			Confirms:     0,
 			TokenAddress: withdraw.TokenAddress.String(),
 			TokenId:      withdraw.TokenId,
@@ -233,7 +233,7 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 	}
 
 	for _, internal := range internals {
-		txItem := Transaction{
+		txItem := &Transaction{
 			BlockHash:   internal.BlockHash.String(),
 			BlockNumber: internal.BlockNumber.Uint64(),
 			Hash:        internal.TxHash.String(),
@@ -242,7 +242,7 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []database.Deposits, withdra
 			Value:       internal.Amount.String(),
 			// todo:
 			//Fee:          withdraw.Fee.String(),
-			TxType:       "withdraw",
+			TxType:       database.TxTypeWithdraw,
 			Confirms:     0,
 			TokenAddress: internal.TokenAddress.String(),
 			TokenId:      internal.TokenId,

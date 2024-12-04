@@ -7,13 +7,15 @@ enum ReturnCode{
   SUCCESS = 1;
 }
 
+// type in (eoa hot cold)
 message PublicKey{
-  uint32 type = 1;
+  string type = 1;
   string public_key = 2;
 }
 
+// type in (eoa hot cold)
 message Address{
-  uint32 type = 1;
+  string type = 1;
   string address = 2;
 }
 
