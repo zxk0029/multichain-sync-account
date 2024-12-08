@@ -58,6 +58,7 @@ type WithdrawsDB interface {
 	UpdateWithdrawByTxHash(requestId string, txHash common.Hash, signedTx string, status TxStatus) error
 	UpdateWithdrawById(requestId string, guid string, signedTx string, status TxStatus) error
 	UpdateWithdrawStatusById(requestId string, status TxStatus, withdrawsList []*Withdraws) error
+	UpdateWithdrawStatusByTxHash(requestId string, status TxStatus, withdrawsList []*Withdraws) error
 	UpdateWithdrawListByTxHash(requestId string, withdrawsList []*Withdraws) error
 	UpdateWithdrawListById(requestId string, withdrawsList []*Withdraws) error
 }
@@ -69,7 +70,7 @@ type withdrawsDB struct {
 func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]*Withdraws, error) {
 	var notifyWithdraws []*Withdraws
 	result := db.gorm.Table("withdraws_"+requestId).
-		Where("status = ?", TxStatusWalletDone).
+		Where("status = ? or status = ?", TxStatusWalletDone, TxStatusNotified).
 		Find(&notifyWithdraws)
 
 	if result.Error != nil {
@@ -200,6 +201,43 @@ func (db *withdrawsDB) UpdateWithdrawStatusById(requestId string, status TxStatu
 
 		result := tx.Table(tableName).
 			Where("guid IN ?", guids).
+			Update("status", status)
+
+		if result.Error != nil {
+			return fmt.Errorf("batch update status failed: %w", result.Error)
+		}
+
+		if result.RowsAffected == 0 {
+			log.Warn("No withdraws updated",
+				"requestId", requestId,
+				"expectedCount", len(withdrawsList),
+			)
+		}
+
+		log.Info("Batch update withdraws status success",
+			"requestId", requestId,
+			"count", result.RowsAffected,
+			"status", status,
+		)
+
+		return nil
+	})
+}
+
+func (db *withdrawsDB) UpdateWithdrawStatusByTxHash(requestId string, status TxStatus, withdrawsList []*Withdraws) error {
+	if len(withdrawsList) == 0 {
+		return nil
+	}
+	tableName := fmt.Sprintf("withdraws_%s", requestId)
+
+	return db.gorm.Transaction(func(tx *gorm.DB) error {
+		var txHashList []string
+		for _, withdraw := range withdrawsList {
+			txHashList = append(txHashList, withdraw.TxHash.String())
+		}
+
+		result := tx.Table(tableName).
+			Where("hash IN ?", txHashList).
 			Update("status", status)
 
 		if result.Error != nil {

@@ -52,6 +52,7 @@ type DepositsDB interface {
 	UpdateDepositsComfirms(requestId string, blockNumber uint64, confirms uint64) error
 	UpdateDepositById(requestId string, guid string, signedTx string, status TxStatus) error
 	UpdateDepositsStatusById(requestId string, status TxStatus, depositList []*Deposits) error
+	UpdateDepositsStatusByTxHash(requestId string, status TxStatus, depositList []*Deposits) error
 	UpdateDepositListByTxHash(requestId string, depositList []*Deposits) error
 	UpdateDepositListById(requestId string, depositList []*Deposits) error
 }
@@ -63,7 +64,7 @@ type depositsDB struct {
 func (db *depositsDB) QueryNotifyDeposits(requestId string) ([]*Deposits, error) {
 	var notifyDeposits []*Deposits
 	result := db.gorm.Table("deposits_"+requestId).
-		Where("status = ? ", TxStatusWalletDone).
+		Where("status = ? or status = ?", TxStatusWalletDone, TxStatusNotified).
 		Find(&notifyDeposits) // Correctly populate the slice
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -150,6 +151,43 @@ func (db *depositsDB) UpdateDepositsStatusById(requestId string, status TxStatus
 				return err
 			}
 		}
+
+		return nil
+	})
+}
+
+func (db *depositsDB) UpdateDepositsStatusByTxHash(requestId string, status TxStatus, depositList []*Deposits) error {
+	if len(depositList) == 0 {
+		return nil
+	}
+	tableName := fmt.Sprintf("deposits_%s", requestId)
+
+	return db.gorm.Transaction(func(tx *gorm.DB) error {
+		var txHashList []string
+		for _, deposit := range depositList {
+			txHashList = append(txHashList, deposit.TxHash.String())
+		}
+
+		result := tx.Table(tableName).
+			Where("hash IN ?", txHashList).
+			Update("status", status)
+
+		if result.Error != nil {
+			return fmt.Errorf("batch update status failed: %w", result.Error)
+		}
+
+		if result.RowsAffected == 0 {
+			log.Warn("No deposits updated",
+				"requestId", requestId,
+				"expectedCount", len(depositList),
+			)
+		}
+
+		log.Info("Batch update deposits status success",
+			"requestId", requestId,
+			"count", result.RowsAffected,
+			"status", status,
+		)
 
 		return nil
 	})

@@ -36,19 +36,19 @@ CREATE INDEX IF NOT EXISTS blocks_timestamp ON blocks (timestamp);
 CREATE TABLE IF NOT EXISTS transactions
 (
     guid          VARCHAR PRIMARY KEY,
-    block_hash    VARCHAR  NOT NULL,
-    block_number  UINT256  NOT NULL CHECK (block_number > 0),
-    hash          VARCHAR  NOT NULL,
-    from_address  VARCHAR  NOT NULL,
-    to_address    VARCHAR  NOT NULL,
-    token_address VARCHAR  NOT NULL,
-    token_id      VARCHAR  NOT NULL,
-    token_meta    VARCHAR  NOT NULL,
-    fee           UINT256  NOT NULL,
-    amount        UINT256  NOT NULL,
-    status        SMALLINT NOT NULL DEFAULT 0,
-    tx_type       VARCHAR  NOT NULL,
-    timestamp     INTEGER  NOT NULL CHECK (timestamp > 0)
+    block_hash    VARCHAR NOT NULL,
+    block_number  UINT256 NOT NULL CHECK (block_number > 0),
+    hash          VARCHAR NOT NULL,
+    from_address  VARCHAR NOT NULL,
+    to_address    VARCHAR NOT NULL,
+    token_address VARCHAR NOT NULL,
+    token_id      VARCHAR NOT NULL,
+    token_meta    VARCHAR NOT NULL,
+    fee           UINT256 NOT NULL,
+    amount        UINT256 NOT NULL,
+    status        VARCHAR NOT NULL,
+    tx_type       VARCHAR NOT NULL,
+    timestamp     INTEGER NOT NULL CHECK (timestamp > 0)
 );
 CREATE INDEX IF NOT EXISTS transactions_hash ON transactions (hash);
 CREATE INDEX IF NOT EXISTS transactions_timestamp ON transactions (timestamp);

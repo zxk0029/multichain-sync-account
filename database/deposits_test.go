@@ -27,7 +27,7 @@ func TestDepositsDB_StoreAndQuery(t *testing.T) {
 			Confirms:             0,
 			BlockHash:            common.HexToHash("0x1"),
 			BlockNumber:          big.NewInt(1),
-			Hash:                 common.HexToHash("0x2"),
+			TxHash:               common.HexToHash("0x2"),
 			TxType:               TxTypeDeposit,
 			FromAddress:          common.HexToAddress("0x3"),
 			ToAddress:            common.HexToAddress("0x4"),
@@ -87,7 +87,7 @@ func TestUpdateDepositsNotifyStatus(t *testing.T) {
 			Confirms:             0,
 			BlockHash:            common.HexToHash("0x1"),
 			BlockNumber:          big.NewInt(1),
-			Hash:                 common.HexToHash("0x2"),
+			TxHash:               common.HexToHash("0x2"),
 			TxType:               TxTypeDeposit,
 			FromAddress:          common.HexToAddress("0x3"),
 			ToAddress:            common.HexToAddress("0x4"),
@@ -109,7 +109,7 @@ func TestUpdateDepositsNotifyStatus(t *testing.T) {
 	}
 
 	// Query the deposit
-	notifyDeposits, err := depositsDB.QueryDepositsByTxHash(strconv.Itoa(CurrentRequestId), depositList[0].Hash)
+	notifyDeposits, err := depositsDB.QueryDepositsByTxHash(strconv.Itoa(CurrentRequestId), depositList[0].TxHash)
 	if err != nil {
 		t.Fatalf("failed to query notify deposits: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestUpdateDepositList(t *testing.T) {
 			Confirms:             0,
 			BlockHash:            common.HexToHash("0x11"),
 			BlockNumber:          big.NewInt(1),
-			Hash:                 common.HexToHash("0x22"),
+			TxHash:               common.HexToHash("0x22"),
 			TxType:               TxTypeDeposit,
 			FromAddress:          common.HexToAddress("0x33"),
 			ToAddress:            common.HexToAddress("0x44"),
@@ -168,7 +168,7 @@ func TestUpdateDepositList(t *testing.T) {
 			Confirms:             0,
 			BlockHash:            common.HexToHash("0x1"),
 			BlockNumber:          big.NewInt(1),
-			Hash:                 common.HexToHash("0x2"),
+			TxHash:               common.HexToHash("0x2"),
 			TxType:               TxTypeDeposit,
 			FromAddress:          common.HexToAddress("0x3"),
 			ToAddress:            common.HexToAddress("0x4"),
@@ -192,7 +192,7 @@ func TestUpdateDepositList(t *testing.T) {
 
 	// Verify updates
 	for _, deposit := range depositList {
-		temp, err := depositsDB.QueryDepositsByTxHash(strconv.Itoa(CurrentRequestId), deposit.Hash)
+		temp, err := depositsDB.QueryDepositsByTxHash(strconv.Itoa(CurrentRequestId), deposit.TxHash)
 		if err != nil {
 			t.Fatalf("failed to QueryDepositsByTxHash: %v", err)
 		}

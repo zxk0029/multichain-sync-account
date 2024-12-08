@@ -144,27 +144,27 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 				 */
 				if !existFromAddress && (existToAddress && toAddressType == database.AddressTypeEOA) { // 充值
 					log.Info("Found deposit transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
-					txItem.TxType = "deposit"
+					txItem.TxType = database.TxTypeDeposit
 				}
 
 				if (existFromAddress && FromAddressType == database.AddressTypeHot) && !existToAddress { // 提现
 					log.Info("Found withdraw transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
-					txItem.TxType = "withdraw"
+					txItem.TxType = database.TxTypeWithdraw
 				}
 
 				if (existFromAddress && FromAddressType == database.AddressTypeEOA) && (existToAddress && toAddressType == database.AddressTypeHot) { // 归集
 					log.Info("Found collection transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
-					txItem.TxType = "collection"
+					txItem.TxType = database.TxTypeCollection
 				}
 
 				if (existFromAddress && FromAddressType == database.AddressTypeHot) && (existToAddress && toAddressType == database.AddressTypeCold) { // 热转冷
 					log.Info("Found hot2cold transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
-					txItem.TxType = "hot2cold"
+					txItem.TxType = database.TxTypeHot2Cold
 				}
 
 				if (existFromAddress && FromAddressType == database.AddressTypeCold) && (existToAddress && toAddressType == database.AddressTypeHot) { // 热转冷
 					log.Info("Found cold2hot transaction", "txHash", tx.Hash, "from", fromAddress, "to", toAddress)
-					txItem.TxType = "cold2hot"
+					txItem.TxType = database.TxTypeCold2Hot
 				}
 				businessTransactions = append(businessTransactions, txItem)
 			}

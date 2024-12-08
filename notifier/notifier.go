@@ -35,7 +35,8 @@ func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, 
 	}
 
 	var businessIds []string
-	var notifyClient map[string]*NotifyClient
+	notifyClient := make(map[string]*NotifyClient)
+
 	for _, business := range businessList {
 		log.Info("handle business id", "business", business.BusinessUid)
 		businessIds = append(businessIds, business.BusinessUid)
@@ -48,6 +49,7 @@ func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, 
 	}
 
 	resCtx, resCancel := context.WithCancel(context.Background())
+
 	return &Notifier{
 		db:             db,
 		notifyClient:   notifyClient,
@@ -104,12 +106,11 @@ func (nf *Notifier) Start(ctx context.Context) error {
 					}
 
 					// AfterRequest
-					err = nf.BeforeAfterNotify(businessId, true, notify, needNotifyDeposits, needNotifyWithdraws, needNotifyInternals)
+					err = nf.BeforeAfterNotify(businessId, false, notify, needNotifyDeposits, needNotifyWithdraws, needNotifyInternals)
 					if err != nil {
 						log.Error("After notify update status fail", "err", err)
 						return err
 					}
-
 				}
 			case <-nf.resourceCtx.Done():
 				log.Info("stop internals in worker")
@@ -125,7 +126,7 @@ func (nf *Notifier) Stop(ctx context.Context) error {
 	nf.resourceCancel()
 	nf.ticker.Stop()
 	if err := nf.tasks.Wait(); err != nil {
-		result = errors.Join(result, fmt.Errorf("failed to await notify %w"), err)
+		result = errors.Join(result, fmt.Errorf("failed to await notify %w", err))
 		return result
 	}
 	log.Info("stop notify success")
@@ -166,12 +167,12 @@ func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySu
 	if _, err := retry.Do[interface{}](nf.resourceCtx, 10, retryStrategy, func() (interface{}, error) {
 		if err := nf.db.Transaction(func(tx *database.DB) error {
 			if len(deposits) > 0 {
-				if err := tx.Deposits.UpdateDepositsStatusById(businessId, depositsNotifyStatus, updateStutusDepositTxn); err != nil {
+				if err := tx.Deposits.UpdateDepositsStatusByTxHash(businessId, depositsNotifyStatus, updateStutusDepositTxn); err != nil {
 					return err
 				}
 			}
 			if len(withdraws) > 0 {
-				if err := tx.Withdraws.UpdateWithdrawStatusById(businessId, withdrawNotifyStatus, withdraws); err != nil {
+				if err := tx.Withdraws.UpdateWithdrawStatusByTxHash(businessId, withdrawNotifyStatus, withdraws); err != nil {
 					return err
 				}
 			}
@@ -197,15 +198,14 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []*database.Deposits, withdr
 	var notifyTransactions []*Transaction
 	for _, deposit := range deposits {
 		txItem := &Transaction{
-			BlockHash:   deposit.BlockHash.String(),
-			BlockNumber: deposit.BlockNumber.Uint64(),
-			Hash:        deposit.Hash.String(),
-			FromAddress: deposit.FromAddress.String(),
-			ToAddress:   deposit.ToAddress.String(),
-			Value:       deposit.Amount.String(),
-			// todo:
-			//Fee:          deposit.Fee.String(),
-			TxType:       database.TxTypeDeposit,
+			BlockHash:    deposit.BlockHash.String(),
+			BlockNumber:  deposit.BlockNumber.Uint64(),
+			Hash:         deposit.TxHash.String(),
+			FromAddress:  deposit.FromAddress.String(),
+			ToAddress:    deposit.ToAddress.String(),
+			Value:        deposit.Amount.String(),
+			Fee:          deposit.MaxFeePerGas,
+			TxType:       deposit.TxType,
 			Confirms:     deposit.Confirms,
 			TokenAddress: deposit.TokenAddress.String(),
 			TokenId:      deposit.TokenId,
@@ -216,15 +216,14 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []*database.Deposits, withdr
 
 	for _, withdraw := range withdraws {
 		txItem := &Transaction{
-			BlockHash:   withdraw.BlockHash.String(),
-			BlockNumber: withdraw.BlockNumber.Uint64(),
-			Hash:        withdraw.TxHash.String(),
-			FromAddress: withdraw.FromAddress.String(),
-			ToAddress:   withdraw.ToAddress.String(),
-			Value:       withdraw.Amount.String(),
-			// todo:
-			//Fee:          withdraw.Fee.String(),
-			TxType:       database.TxTypeWithdraw,
+			BlockHash:    withdraw.BlockHash.String(),
+			BlockNumber:  withdraw.BlockNumber.Uint64(),
+			Hash:         withdraw.TxHash.String(),
+			FromAddress:  withdraw.FromAddress.String(),
+			ToAddress:    withdraw.ToAddress.String(),
+			Value:        withdraw.Amount.String(),
+			Fee:          withdraw.MaxFeePerGas,
+			TxType:       withdraw.TxType,
 			Confirms:     0,
 			TokenAddress: withdraw.TokenAddress.String(),
 			TokenId:      withdraw.TokenId,
@@ -235,15 +234,14 @@ func (nf *Notifier) BuildNotifyTransaction(deposits []*database.Deposits, withdr
 
 	for _, internal := range internals {
 		txItem := &Transaction{
-			BlockHash:   internal.BlockHash.String(),
-			BlockNumber: internal.BlockNumber.Uint64(),
-			Hash:        internal.TxHash.String(),
-			FromAddress: internal.FromAddress.String(),
-			ToAddress:   internal.ToAddress.String(),
-			Value:       internal.Amount.String(),
-			// todo:
-			//Fee:          withdraw.Fee.String(),
-			TxType:       database.TxTypeWithdraw,
+			BlockHash:    internal.BlockHash.String(),
+			BlockNumber:  internal.BlockNumber.Uint64(),
+			Hash:         internal.TxHash.String(),
+			FromAddress:  internal.FromAddress.String(),
+			ToAddress:    internal.ToAddress.String(),
+			Value:        internal.Amount.String(),
+			Fee:          internal.MaxFeePerGas,
+			TxType:       internal.TxType,
 			Confirms:     0,
 			TokenAddress: internal.TokenAddress.String(),
 			TokenId:      internal.TokenId,

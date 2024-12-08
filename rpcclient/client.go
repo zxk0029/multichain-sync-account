@@ -54,6 +54,10 @@ func (wac *WalletChainAccountClient) GetBlockHeader(number *big.Int) (*BlockHead
 		Height:  height,
 	}
 	blockHeader, err := wac.AccountRpClient.GetBlockHeaderByNumber(wac.Ctx, req)
+	if err != nil {
+		log.Error("get latest block GetBlockHeaderByNumber fail", "err", err)
+		return nil, err
+	}
 	if blockHeader.Code == common.ReturnCode_ERROR {
 		log.Error("get latest block fail", "err", err)
 		return nil, err
@@ -75,6 +79,10 @@ func (wac *WalletChainAccountClient) GetBlockInfo(blockNumber *big.Int) ([]*acco
 		ViewTx: true,
 	}
 	blockInfo, err := wac.AccountRpClient.GetBlockByNumber(wac.Ctx, req)
+	if err != nil {
+		log.Error("get block GetBlockByNumber fail", "err", err)
+		return nil, err
+	}
 	if blockInfo.Code == common.ReturnCode_ERROR {
 		log.Error("get block info fail", "err", err)
 		return nil, err
@@ -89,6 +97,10 @@ func (wac *WalletChainAccountClient) GetTransactionByHash(hash string) (*account
 		Hash:    hash,
 	}
 	txInfo, err := wac.AccountRpClient.GetTxByHash(wac.Ctx, req)
+	if err != nil {
+		log.Error("get GetTxByHash fail", "err", err)
+		return nil, err
+	}
 	if txInfo.Code == common.ReturnCode_ERROR {
 		log.Error("get block info fail", "err", err)
 		return nil, err

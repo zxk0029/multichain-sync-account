@@ -72,7 +72,7 @@ func NewInternalsDB(db *gorm.DB) InternalsDB {
 func (db *internalsDB) QueryNotifyInternal(requestId string) ([]*Internals, error) {
 	var notifyInternals []*Internals
 	result := db.gorm.Table("internals_"+requestId).
-		Where("status = ?", TxStatusWalletDone).
+		Where("status = ? or status = ?", TxStatusWalletDone, TxStatusNotified).
 		Find(&notifyInternals)
 	if result.Error != nil {
 		return nil, result.Error
