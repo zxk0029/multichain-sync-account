@@ -32,6 +32,27 @@ CREATE TABLE IF NOT EXISTS blocks
 CREATE INDEX IF NOT EXISTS blocks_number ON blocks (number);
 CREATE INDEX IF NOT EXISTS blocks_timestamp ON blocks (timestamp);
 
+
+CREATE TABLE IF NOT EXISTS transactions
+(
+    guid          VARCHAR PRIMARY KEY,
+    block_hash    VARCHAR  NOT NULL,
+    block_number  UINT256  NOT NULL CHECK (block_number > 0),
+    hash          VARCHAR  NOT NULL,
+    from_address  VARCHAR  NOT NULL,
+    to_address    VARCHAR  NOT NULL,
+    token_address VARCHAR  NOT NULL,
+    token_id      VARCHAR  NOT NULL,
+    token_meta    VARCHAR  NOT NULL,
+    fee           UINT256  NOT NULL,
+    amount        UINT256  NOT NULL,
+    status        SMALLINT NOT NULL DEFAULT 0,
+    tx_type       VARCHAR  NOT NULL,
+    timestamp     INTEGER  NOT NULL CHECK (timestamp > 0)
+);
+CREATE INDEX IF NOT EXISTS transactions_hash ON transactions (hash);
+CREATE INDEX IF NOT EXISTS transactions_timestamp ON transactions (timestamp);
+
 CREATE TABLE IF NOT EXISTS addresses
 (
     guid         VARCHAR PRIMARY KEY,
@@ -76,23 +97,35 @@ CREATE INDEX IF NOT EXISTS idx_balances_address_type ON balances (address_type);
 
 CREATE TABLE IF NOT EXISTS deposits
 (
-    guid          VARCHAR PRIMARY KEY,
-    block_hash    VARCHAR     NOT NULL,
-    block_number  UINT256     NOT NULL CHECK (block_number > 0),
-    hash          VARCHAR     NOT NULL,
-    from_address  VARCHAR     NOT NULL,
-    to_address    VARCHAR     NOT NULL,
-    token_address VARCHAR     NOT NULL,
-    token_id      VARCHAR     NOT NULL,
-    token_meta    VARCHAR     NOT NULL,
-    fee           UINT256     NOT NULL,
-    amount        UINT256     NOT NULL,
-    confirms      SMALLINT    NOT NULL DEFAULT 0,
-    status        varchar(10) NOT NULL,
-    timestamp     INTEGER     NOT NULL CHECK (timestamp > 0)
+    guid                     VARCHAR PRIMARY KEY,
+    timestamp                INTEGER  NOT NULL CHECK (timestamp > 0),
+    status                   varchar  NOT NULL,
+    confirms                 SMALLINT NOT NULL DEFAULT 0,
+
+    block_hash               VARCHAR  NOT NULL,
+    block_number             UINT256  NOT NULL CHECK (block_number > 0),
+    hash                     VARCHAR  NOT NULL,
+    tx_type                  VARCHAR  NOT NULL,
+
+    from_address             VARCHAR  NOT NULL,
+    to_address               VARCHAR  NOT NULL,
+    amount                   UINT256  NOT NULL,
+
+    gas_limit                INTEGER  NOT NULL,
+    max_fee_per_gas          VARCHAR  NOT NULL,
+    max_priority_fee_per_gas VARCHAR  NOT NULL,
+
+    token_type               VARCHAR  NOT NULL,
+    token_address            VARCHAR  NOT NULL,
+    token_id                 VARCHAR  NOT NULL,
+    token_meta               VARCHAR  NOT NULL,
+
+    tx_sign_hex              VARCHAR  NOT NULL
 );
 CREATE INDEX IF NOT EXISTS deposits_hash ON deposits (hash);
 CREATE INDEX IF NOT EXISTS deposits_timestamp ON deposits (timestamp);
+CREATE INDEX IF NOT EXISTS deposits_from_address ON deposits (from_address);
+CREATE INDEX IF NOT EXISTS deposits_to_address ON deposits (to_address);
 
 CREATE TABLE IF NOT EXISTS withdraws
 (
@@ -103,6 +136,7 @@ CREATE TABLE IF NOT EXISTS withdraws
     block_hash               VARCHAR NOT NULL,
     block_number             UINT256 NOT NULL CHECK (block_number > 0),
     hash                     VARCHAR NOT NULL,
+    tx_type                  VARCHAR NOT NULL,
 
     from_address             VARCHAR NOT NULL,
     to_address               VARCHAR NOT NULL,
@@ -134,6 +168,7 @@ CREATE TABLE IF NOT EXISTS internals
     block_hash               VARCHAR NOT NULL,
     block_number             UINT256 NOT NULL CHECK (block_number > 0),
     hash                     VARCHAR NOT NULL,
+    tx_type                  VARCHAR NOT NULL,
 
     from_address             VARCHAR NOT NULL,
     to_address               VARCHAR NOT NULL,
@@ -155,25 +190,4 @@ CREATE INDEX IF NOT EXISTS internals_hash ON internals (hash);
 CREATE INDEX IF NOT EXISTS internals_timestamp ON internals (timestamp);
 CREATE INDEX IF NOT EXISTS internals_from_address ON internals (from_address);
 CREATE INDEX IF NOT EXISTS internals_to_address ON internals (to_address);
-
-
-CREATE TABLE IF NOT EXISTS transactions
-(
-    guid          VARCHAR PRIMARY KEY,
-    block_hash    VARCHAR  NOT NULL,
-    block_number  UINT256  NOT NULL CHECK (block_number > 0),
-    hash          VARCHAR  NOT NULL,
-    from_address  VARCHAR  NOT NULL,
-    to_address    VARCHAR  NOT NULL,
-    token_address VARCHAR  NOT NULL,
-    token_id      VARCHAR  NOT NULL,
-    token_meta    VARCHAR  NOT NULL,
-    fee           UINT256  NOT NULL,
-    amount        UINT256  NOT NULL,
-    status        SMALLINT NOT NULL DEFAULT 0,
-    tx_type       VARCHAR  NOT NULL,
-    timestamp     INTEGER  NOT NULL CHECK (timestamp > 0)
-);
-CREATE INDEX IF NOT EXISTS transactions_hash ON transactions (hash);
-CREATE INDEX IF NOT EXISTS transactions_timestamp ON transactions (timestamp);
 

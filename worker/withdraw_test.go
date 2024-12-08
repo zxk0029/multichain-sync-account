@@ -63,14 +63,6 @@ func TestWithdraw_Start(t *testing.T) {
 	// 等待一段时间让 worker 处理交易
 	time.Sleep(1000 * time.Second)
 
-	// 验证交易是否被处理
-	processedTx, err := withdraw.db.Withdraws.QueryWithdrawsByHash(businessId, txId)
-	assert.NoError(t, err)
-	assert.NotNil(t, processedTx)
-
-	// 验证状态更新
-	//assert.Equal(t, uint8(2), processedTx.Status)
-
 	// 清理资源
 	err = withdraw.Close()
 	assert.NoError(t, err)

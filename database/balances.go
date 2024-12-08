@@ -37,7 +37,7 @@ type BalancesDB interface {
 
 	UpdateOrCreate(string, []*TokenBalance) error
 	StoreBalances(string, []*Balances) error
-	UpdateBalanceList(string, []*Balances) error
+	UpdateBalanceListByTwoAddress(string, []*Balances) error
 	UpdateBalance(string, *Balances) error
 }
 
@@ -117,7 +117,7 @@ func (db *balancesDB) UpdateAndSaveBalance(tx *gorm.DB, requestId string, balanc
 	return nil
 }
 
-func (db *balancesDB) UpdateBalanceList(requestId string, balanceList []*Balances) error {
+func (db *balancesDB) UpdateBalanceListByTwoAddress(requestId string, balanceList []*Balances) error {
 	if len(balanceList) == 0 {
 		return nil
 	}

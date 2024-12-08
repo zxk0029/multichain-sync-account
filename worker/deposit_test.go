@@ -3,7 +3,9 @@ package worker
 import (
 	"context"
 	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,7 +20,6 @@ import (
 
 const (
 	depositBusinessId = "1"
-	depositTxId       = "1e7e508b-5ad0-4ba7-b92c-b8bc1555fd9b"
 
 	CurrentRequestId = 1
 	CurrentChainId   = 17000
@@ -83,87 +84,22 @@ func TestDeposit_Start(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDeposit_HandleTransaction(t *testing.T) {
+func TestDeposit_SendTransaction(t *testing.T) {
+	// 准备测试环境
 	deposit := setupDeposit(t)
 
-	// 准备测试数据
-	tx := &Transaction{
-		BlockNumber:  CurrentBlockNumber,
-		Hash:         "0x123...",
-		FromAddress:  "0x456...",
-		ToAddress:    "0x789...",
-		TokenAddress: "0xabc...",
-		TxType:       "deposit",
-	}
+	depositTxId := "818e6568-17ee-463b-ad29-ea05adcc664d"
 
-	txMsg := &account.TxMessage{
-		Hash:   "0x123...",
-		Fee:    "1000000000",
-		Status: 1,
-		Values: []*account.Value{
-			{
-				Value: "1000000000000000000",
-			},
-		},
-	}
-
-	// 测试处理交易
-	result, err := deposit.BuildTransaction(tx, txMsg)
+	dbDeposit, err := deposit.database.Deposits.QueryDepositsById(strconv.Itoa(CurrentRequestId), depositTxId)
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, tx.TxType, result.TxType)
-}
 
-func TestDeposit_HandleDeposit(t *testing.T) {
-	deposit := setupDeposit(t)
-
-	// 准备测试数据
-	tx := &Transaction{
-		BlockNumber:  CurrentBlockNumber,
-		Hash:         "0x123...",
-		FromAddress:  "0x456...",
-		ToAddress:    "0x789...",
-		TokenAddress: "0xabc...",
-	}
-
-	txMsg := &account.TxMessage{
-		Hash: "0x123...",
-		Fee:  "1000000000",
-		Values: []*account.Value{
-			{
-				Value: "1000000000000000000",
-			},
-		},
-	}
-
-	// 测试处理存款
-	result, err := deposit.HandleDeposit(tx, txMsg)
+	// 模拟发送交易上链
+	sendTx, err := deposit.rpcClient.SendTx(dbDeposit.TxSignHex)
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, tx.Hash, result.Hash.Hex())
-}
 
-func TestDeposit_HandleBatch(t *testing.T) {
-	deposit := setupDeposit(t)
+	dbDeposit.TxHash = common.HexToHash(sendTx)
+	dbDeposit.Status = database.TxStatusBroadcasted
 
-	// 准备测试数据
-	batch := map[string]*TransactionsChannel{
-		depositBusinessId: {
-			BlockHeight: 12345,
-			Transactions: []*Transaction{
-				{
-					BlockNumber:  CurrentBlockNumber,
-					Hash:         "0x123...",
-					FromAddress:  "0x456...",
-					ToAddress:    "0x789...",
-					TokenAddress: "0xabc...",
-					TxType:       "deposit",
-				},
-			},
-		},
-	}
-
-	// 测试处理批次
-	err := deposit.handleBatch(batch)
+	err = deposit.database.Deposits.UpdateDepositListById(strconv.Itoa(CurrentRequestId), []*database.Deposits{dbDeposit})
 	assert.NoError(t, err)
 }

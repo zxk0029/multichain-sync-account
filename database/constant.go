@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -61,11 +62,19 @@ const (
 	TxTypeCold2Hot   TransactionType = "cold2hot"
 )
 
-type DepositStatus string
-
-const (
-	DepositStatusPending      DepositStatus = "pending"
-	DepositStatusWalletDone   DepositStatus = "walletDone"
-	DepositStatusBusinessDone DepositStatus = "businessDone"
-	DepositStatusCompleted    DepositStatus = "completed"
-)
+func ParseTransactionType(s string) (TransactionType, error) {
+	switch s {
+	case string(TxTypeDeposit):
+		return TxTypeDeposit, nil
+	case string(TxTypeWithdraw):
+		return TxTypeWithdraw, nil
+	case string(TxTypeCollection):
+		return TxTypeCollection, nil
+	case string(TxTypeHot2Cold):
+		return TxTypeHot2Cold, nil
+	case string(TxTypeCold2Hot):
+		return TxTypeCold2Hot, nil
+	default:
+		return TxTypeUnKnow, errors.New("unknown transaction type")
+	}
+}

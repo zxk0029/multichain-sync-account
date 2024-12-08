@@ -96,7 +96,7 @@ func (wac *WalletChainAccountClient) GetTransactionByHash(hash string) (*account
 	return txInfo.Tx, nil
 }
 
-func (wac *WalletChainAccountClient) GetAccount(address string) (int, error) {
+func (wac *WalletChainAccountClient) GetAccountAccountNumber(address string) (int, error) {
 	req := &account.AccountRequest{
 		Chain:   wac.ChainName,
 		Network: "mainnet",
@@ -108,6 +108,46 @@ func (wac *WalletChainAccountClient) GetAccount(address string) (int, error) {
 		return 0, err
 	}
 	return strconv.Atoi(accountInfo.AccountNumber)
+}
+
+func (wac *WalletChainAccountClient) GetAccount(address string) (int, int, int) {
+	req := &account.AccountRequest{
+		Chain:           wac.ChainName,
+		Network:         "mainnet",
+		Address:         address,
+		ContractAddress: "0x00",
+	}
+
+	accountInfo, err := wac.AccountRpClient.GetAccount(wac.Ctx, req)
+	if err != nil {
+		log.Info("GetAccount fail", "err", err)
+		return 0, 0, 0
+	}
+
+	if accountInfo.Code == common.ReturnCode_ERROR {
+		log.Info("get account info fail", "msg", accountInfo.Msg)
+		return 0, 0, 0
+	}
+
+	accountNumber, err := strconv.Atoi(accountInfo.AccountNumber)
+	if err != nil {
+		log.Info("failed to convert account number", "err", err)
+		return 0, 0, 0
+	}
+
+	sequence, err := strconv.Atoi(accountInfo.Sequence)
+	if err != nil {
+		log.Info("failed to convert sequence", "err", err)
+		return 0, 0, 0
+	}
+
+	balance, err := strconv.Atoi(accountInfo.Balance)
+	if err != nil {
+		log.Info("failed to convert balance", "err", err)
+		return 0, 0, 0
+	}
+
+	return accountNumber, sequence, balance
 }
 
 func (wac *WalletChainAccountClient) SendTx(rawTx string) (string, error) {
