@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	notifyUrl        = "127.0.0.1:8001/dapplink/notify"
+	notifyUrl        = "http://127.0.0.1:8001"
 	CurrentRequestId = "1"
 	CurrentChainId   = "17000"
 	CurrentChain     = "ethereum"
