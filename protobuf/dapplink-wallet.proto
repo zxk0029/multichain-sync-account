@@ -50,7 +50,7 @@ message ExportAddressesResponse {
   repeated Address addresses = 3;
 }
 
-message UnSignWithdrawTransactionRequest {
+message UnSignTransactionRequest {
   string consumer_token = 1;
   string request_id = 2;
   string chain_id = 3;
@@ -61,17 +61,19 @@ message UnSignWithdrawTransactionRequest {
   string contract_address = 8;
   string token_id = 9;
   string token_meta = 10;
+  // database/constant.go:54
+  // TransactionType
   string tx_type = 11;
 }
 
-message UnSignWithdrawTransactionResponse {
+message UnSignTransactionResponse {
   ReturnCode code = 1;
   string msg = 2;
   string transaction_id = 4;
   string un_sign_tx = 5;
 }
 
-message SignedWithdrawTransactionRequest {
+message SignedTransactionRequest {
   string consumer_token = 1;
   string request_id = 2;
   string chain = 3;
@@ -81,7 +83,7 @@ message SignedWithdrawTransactionRequest {
   string tx_type = 7;
 }
 
-message SignedWithdrawTransactionResponse {
+message SignedTransactionResponse {
   ReturnCode code = 1;
   string msg = 2;
   string signed_tx = 3;
@@ -101,7 +103,7 @@ message SetTokenAddressResponse {
 service BusinessMiddleWireServices {
   rpc businessRegister(BusinessRegisterRequest) returns (BusinessRegisterResponse) {}
   rpc exportAddressesByPublicKeys(ExportAddressesRequest) returns (ExportAddressesResponse) {}
-  rpc createUnSignTransaction(UnSignWithdrawTransactionRequest) returns(UnSignWithdrawTransactionResponse){}
-  rpc buildSignedTransaction(SignedWithdrawTransactionRequest) returns(SignedWithdrawTransactionResponse){}
+  rpc createUnSignTransaction(UnSignTransactionRequest) returns(UnSignTransactionResponse){}
+  rpc buildSignedTransaction(SignedTransactionRequest) returns(SignedTransactionResponse){}
   rpc setTokenAddress(SetTokenAddressRequest) returns (SetTokenAddressResponse) {}
 }
