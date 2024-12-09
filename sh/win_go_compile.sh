@@ -1,4 +1,5 @@
 #!/bin/bash
+# in git.bash run
 
 function exit_if() {
     extcode=$1
