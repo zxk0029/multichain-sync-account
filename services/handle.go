@@ -127,8 +127,8 @@ func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.C
 	}, nil
 }
 
-func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Context, request *dal_wallet_go.UnSignWithdrawTransactionRequest) (*dal_wallet_go.UnSignWithdrawTransactionResponse, error) {
-	response := &dal_wallet_go.UnSignWithdrawTransactionResponse{
+func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Context, request *dal_wallet_go.UnSignTransactionRequest) (*dal_wallet_go.UnSignTransactionResponse, error) {
+	response := &dal_wallet_go.UnSignTransactionResponse{
 		Code:     dal_wallet_go.ReturnCode_ERROR,
 		UnSignTx: "0x00",
 	}
@@ -212,8 +212,8 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 	return response, nil
 }
 
-func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Context, request *dal_wallet_go.SignedWithdrawTransactionRequest) (*dal_wallet_go.SignedWithdrawTransactionResponse, error) {
-	response := &dal_wallet_go.SignedWithdrawTransactionResponse{
+func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Context, request *dal_wallet_go.SignedTransactionRequest) (*dal_wallet_go.SignedTransactionResponse, error) {
+	response := &dal_wallet_go.SignedTransactionResponse{
 		Code: dal_wallet_go.ReturnCode_ERROR,
 	}
 	// 1. Get transaction from database based on type
@@ -444,7 +444,7 @@ func ParseFastFee(fastFee string) (*FeeInfo, error) {
 	}, nil
 }
 
-func validateRequest(request *dal_wallet_go.UnSignWithdrawTransactionRequest) error {
+func validateRequest(request *dal_wallet_go.UnSignTransactionRequest) error {
 	if request == nil {
 		return errors.New("request cannot be nil")
 	}
@@ -507,7 +507,7 @@ func (bws *BusinessMiddleWireServices) getGasAndContractInfo(contractAddress str
 	return TokenGasLimit, contractAddress
 }
 
-func (bws *BusinessMiddleWireServices) storeWithdraw(request *dal_wallet_go.UnSignWithdrawTransactionRequest,
+func (bws *BusinessMiddleWireServices) storeWithdraw(request *dal_wallet_go.UnSignTransactionRequest,
 	transactionId uuid.UUID, amountBig *big.Int, gasLimit uint64, feeInfo *FeeInfo, transactionType database.TransactionType) error {
 
 	withdraw := &database.Withdraws{
@@ -535,7 +535,7 @@ func (bws *BusinessMiddleWireServices) storeWithdraw(request *dal_wallet_go.UnSi
 }
 
 // 辅助方法：存储内部交易
-func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSignWithdrawTransactionRequest,
+func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSignTransactionRequest,
 	transactionId uuid.UUID, amountBig *big.Int, gasLimit uint64, feeInfo *FeeInfo, transactionType database.TransactionType) error {
 
 	internal := &database.Internals{
@@ -563,7 +563,7 @@ func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSi
 }
 
 func (bws *BusinessMiddleWireServices) StoreDeposits(ctx context.Context,
-	depositsRequest *dal_wallet_go.UnSignWithdrawTransactionRequest, transactionId uuid.UUID, amountBig *big.Int,
+	depositsRequest *dal_wallet_go.UnSignTransactionRequest, transactionId uuid.UUID, amountBig *big.Int,
 	gasLimit uint64, feeInfo *FeeInfo, transactionType database.TransactionType) error {
 
 	dbDeposit := &database.Deposits{
