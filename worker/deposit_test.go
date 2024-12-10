@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"github.com/dapplink-labs/multichain-sync-account/common/json2"
 	"math/big"
 	"strconv"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/dapplink-labs/multichain-sync-account/common/json2"
 	"github.com/dapplink-labs/multichain-sync-account/config"
 	"github.com/dapplink-labs/multichain-sync-account/database"
 	"github.com/dapplink-labs/multichain-sync-account/rpcclient"

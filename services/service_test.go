@@ -143,7 +143,7 @@ func TestBusinessMiddleWireServices_CreateUnSignTransaction_collection(t *testin
 	ctx := context.Background()
 
 	// 构造请求
-	request := &dal_wallet_go.UnSignWithdrawTransactionRequest{
+	request := &dal_wallet_go.UnSignTransactionRequest{
 		ConsumerToken: "test_token",
 		RequestId:     CurrentRequestId,
 		ChainId:       CurrentChainId, // 主网
@@ -186,7 +186,7 @@ func TestBusinessMiddleWireServices_CreateUnSignTransaction_hot2cold(t *testing.
 	ctx := context.Background()
 
 	// 构造请求
-	request := &dal_wallet_go.UnSignWithdrawTransactionRequest{
+	request := &dal_wallet_go.UnSignTransactionRequest{
 		ConsumerToken: "test_token",
 		RequestId:     CurrentRequestId,
 		ChainId:       CurrentChainId, // 主网
@@ -229,7 +229,7 @@ func TestBusinessMiddleWireServices_CreateUnSignTransaction_withdraw(t *testing.
 	ctx := context.Background()
 
 	// 构造请求
-	request := &dal_wallet_go.UnSignWithdrawTransactionRequest{
+	request := &dal_wallet_go.UnSignTransactionRequest{
 		ConsumerToken: "test_token",
 		RequestId:     CurrentRequestId,
 		ChainId:       CurrentChainId, // 主网
@@ -273,7 +273,7 @@ func TestBusinessMiddleWireServices_CreateUnSignTransaction_deposit(t *testing.T
 	ctx := context.Background()
 
 	// 构造请求
-	request := &dal_wallet_go.UnSignWithdrawTransactionRequest{
+	request := &dal_wallet_go.UnSignTransactionRequest{
 		ConsumerToken: "test_token",
 		RequestId:     CurrentRequestId,
 		ChainId:       CurrentChainId, // 主网
@@ -317,7 +317,7 @@ func TestBusinessMiddleWireServices_BuildSignedTransaction(t *testing.T) {
 	ctx := context.Background()
 
 	// 2. 先创建一个未签名交易
-	request := &dal_wallet_go.SignedWithdrawTransactionRequest{
+	request := &dal_wallet_go.SignedTransactionRequest{
 		ConsumerToken: "test_token",
 		RequestId:     CurrentRequestId,
 		Chain:         CurrentChain,
