@@ -95,7 +95,7 @@ func (db *balancesDB) UpdateAndSaveBalance(tx *gorm.DB, requestId string, balanc
 		return fmt.Errorf("query balance failed: %w", result.Error)
 	}
 
-	currentBalance.Balance = new(big.Int).Add(currentBalance.Balance, balance.Balance)
+	currentBalance.Balance = balance.Balance //上游修改这里不做重复计算
 	currentBalance.LockBalance = new(big.Int).Add(currentBalance.LockBalance, balance.LockBalance)
 	currentBalance.Timestamp = uint64(time.Now().Unix())
 
@@ -270,8 +270,15 @@ func (db *balancesDB) handleDeposit(tx *gorm.DB, requestId string, balance *Toke
 		log.Error("Query user address failed", "err", err)
 		return err
 	}
-
+	log.Info("Processing handleDeposit",
+		"txType", balance.TxType,
+		"from", balance.FromAddress,
+		"to", balance.ToAddress,
+		"token", balance.TokenAddress,
+		"amount", balance.Balance,
+		"userAddress.Balance,", userAddress.Balance)
 	userAddress.Balance = new(big.Int).Add(userAddress.Balance, balance.Balance)
+	log.Info("userAddress.Balance after", new(big.Int).Add(userAddress.Balance, balance.Balance))
 	return db.UpdateAndSaveBalance(tx, requestId, userAddress)
 }
 
