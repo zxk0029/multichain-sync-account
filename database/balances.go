@@ -95,7 +95,7 @@ func (db *balancesDB) UpdateAndSaveBalance(tx *gorm.DB, requestId string, balanc
 		return fmt.Errorf("query balance failed: %w", result.Error)
 	}
 
-	currentBalance.Balance = new(big.Int).Add(currentBalance.Balance, balance.Balance)
+	currentBalance.Balance = balance.Balance //上游修改这里不做重复计算
 	currentBalance.LockBalance = new(big.Int).Add(currentBalance.LockBalance, balance.LockBalance)
 	currentBalance.Timestamp = uint64(time.Now().Unix())
 
