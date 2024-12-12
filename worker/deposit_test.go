@@ -2,7 +2,9 @@ package worker
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -119,6 +121,28 @@ func TestDeposit_SendTransaction(t *testing.T) {
 
 	err = deposit.database.Deposits.UpdateDepositListById(strconv.Itoa(CurrentRequestId), []*database.Deposits{dbDeposit})
 	assert.NoError(t, err)
+}
+func TestDeposit_depostit(t *testing.T) {
+	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stdout, log.LevelInfo, true)))
+	// 准备测试环境
+	deposit := setupDeposit(t)
+	var balances []*database.TokenBalance
+	balancesamount, _ := new(big.Int).SetString("30000000000000000", 10)
+	balances = append(
+		balances,
+		&database.TokenBalance{
+			FromAddress:  common.HexToAddress("0x101b37f4544c26047d37df59b13a2444eda192a1"),
+			ToAddress:    common.HexToAddress("0x90c35397f35b54f20060c958074ebe9646a1957e"),
+			TokenAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
+			Balance:      balancesamount,
+			TxType:       database.TxTypeDeposit,
+		},
+	)
+
+	err := deposit.database.Balances.UpdateOrCreate("xiaohuolong", balances)
+
+	assert.NoError(t, err)
+
 }
 
 func TestHandleBatch(t *testing.T) {
