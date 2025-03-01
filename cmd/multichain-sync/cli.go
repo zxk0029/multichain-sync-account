@@ -65,7 +65,7 @@ func runRpc(ctx *cli.Context, shutdown context.CancelCauseFunc) (cliapp.Lifecycl
 		return nil, err
 	}
 	client := account.NewWalletAccountServiceClient(conn)
-	accountClient, err := rpcclient.NewWalletChainAccountClient(context.Background(), client, "Ethereum")
+	accountClient, err := rpcclient.NewWalletChainAccountClient(context.Background(), client, cfg.ChainNode.ChainName)
 	if err != nil {
 		log.Error("new wallet account client fail", "err", err)
 		return nil, err

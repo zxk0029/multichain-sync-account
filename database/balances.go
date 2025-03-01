@@ -7,20 +7,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Balances struct {
-	GUID         uuid.UUID      `gorm:"primary_key" json:"guid"`
-	Address      common.Address `gorm:"type:varchar;not null;serializer:bytes" json:"address"`
-	TokenAddress common.Address `gorm:"type:varchar;not null;serializer:bytes" json:"token_address"`
-	AddressType  AddressType    `gorm:"type:varchar(10);not null;default:'eoa'" json:"address_type"`
-	Balance      *big.Int       `gorm:"type:numeric;not null;default:0;check:balance >= 0;serializer:u256" json:"balance"`
-	LockBalance  *big.Int       `gorm:"type:numeric;not null;default:0;serializer:u256" json:"lock_balance"`
-	Timestamp    uint64         `gorm:"type:bigint;not null;check:timestamp > 0" json:"timestamp"`
+	GUID         uuid.UUID   `gorm:"primary_key" json:"guid"`
+	Address      string      `gorm:"type:varchar;not null" json:"address"`
+	TokenAddress string      `gorm:"type:varchar;not null" json:"token_address"`
+	AddressType  AddressType `gorm:"type:varchar(10);not null;default:'eoa'" json:"address_type"`
+	Balance      *big.Int    `gorm:"type:numeric;not null;default:0;check:balance >= 0;serializer:u256" json:"balance"`
+	LockBalance  *big.Int    `gorm:"type:numeric;not null;default:0;serializer:u256" json:"lock_balance"`
+	Timestamp    uint64      `gorm:"type:bigint;not null;check:timestamp > 0" json:"timestamp"`
 }
 
 type BalancesView interface {
@@ -28,7 +27,7 @@ type BalancesView interface {
 		requestId string,
 		addressType AddressType,
 		address,
-		tokenAddress common.Address,
+		tokenAddress string,
 	) (*Balances, error)
 }
 
@@ -53,8 +52,6 @@ func (db *balancesDB) StoreBalances(requestId string, balanceList []*Balances) e
 	valueList := make([]Balances, len(balanceList))
 	for i, balance := range balanceList {
 		if balance != nil {
-			balance.Address = common.HexToAddress(balance.Address.Hex())
-			balance.TokenAddress = common.HexToAddress(balance.TokenAddress.Hex())
 			valueList[i] = *balance
 		}
 	}
@@ -79,8 +76,8 @@ func (db *balancesDB) UpdateAndSaveBalance(tx *gorm.DB, requestId string, balanc
 	var currentBalance Balances
 	result := tx.Table("balances_"+requestId).
 		Where("address = ? AND token_address = ?",
-			strings.ToLower(balance.Address.String()),
-			strings.ToLower(balance.TokenAddress.String()),
+			strings.ToLower(balance.Address),
+			strings.ToLower(balance.TokenAddress),
 		).
 		Take(&currentBalance)
 
@@ -88,8 +85,8 @@ func (db *balancesDB) UpdateAndSaveBalance(tx *gorm.DB, requestId string, balanc
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			log.Debug("Balance record not found",
 				"requestId", requestId,
-				"address", balance.Address.String(),
-				"tokenAddress", balance.TokenAddress.String())
+				"address", balance.Address,
+				"tokenAddress", balance.TokenAddress)
 			return nil
 		}
 		return fmt.Errorf("query balance failed: %w", result.Error)
@@ -102,15 +99,15 @@ func (db *balancesDB) UpdateAndSaveBalance(tx *gorm.DB, requestId string, balanc
 	if err := tx.Table("balances_" + requestId).Save(&currentBalance).Error; err != nil {
 		log.Error("Failed to save balance",
 			"requestId", requestId,
-			"address", balance.Address.String(),
+			"address", balance.Address,
 			"error", err)
 		return fmt.Errorf("save balance failed: %w", err)
 	}
 
 	log.Debug("Balance updated and saved successfully",
 		"requestId", requestId,
-		"address", balance.Address.String(),
-		"tokenAddress", balance.TokenAddress.String(),
+		"address", balance.Address,
+		"tokenAddress", balance.TokenAddress,
 		"newBalance", currentBalance.Balance.String(),
 		"lockBalance", currentBalance.LockBalance.String())
 
@@ -127,8 +124,8 @@ func (db *balancesDB) UpdateBalanceListByTwoAddress(requestId string, balanceLis
 			var currentBalance Balances
 			result := tx.Table("balances_"+requestId).
 				Where("address = ? AND token_address = ?",
-					balance.Address.String(),
-					balance.TokenAddress.String()).
+					balance.Address,
+					balance.TokenAddress).
 				Take(&currentBalance)
 
 			if result.Error != nil {
@@ -154,7 +151,7 @@ func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(
 	requestId string,
 	addressType AddressType,
 	address,
-	tokenAddress common.Address,
+	tokenAddress string,
 ) (*Balances, error) {
 	balance, err := db.queryBalance(requestId, address, tokenAddress)
 	if err == nil {
@@ -171,14 +168,14 @@ func (db *balancesDB) QueryWalletBalanceByTokenAndAddress(
 func (db *balancesDB) queryBalance(
 	requestId string,
 	address,
-	tokenAddress common.Address,
+	tokenAddress string,
 ) (*Balances, error) {
 	var balance Balances
 
 	err := db.gorm.Table("balances_"+requestId).
 		Where("address = ? AND token_address = ?",
-			strings.ToLower(address.String()),
-			strings.ToLower(tokenAddress.String()),
+			strings.ToLower(address),
+			strings.ToLower(tokenAddress),
 		).
 		Take(&balance).
 		Error
@@ -194,7 +191,7 @@ func (db *balancesDB) createInitialBalance(
 	requestId string,
 	addressType AddressType,
 	address,
-	tokenAddress common.Address,
+	tokenAddress string,
 ) (*Balances, error) {
 	balance := &Balances{
 		GUID:         uuid.New(),
@@ -209,8 +206,8 @@ func (db *balancesDB) createInitialBalance(
 	if err := db.gorm.Table("balances_" + requestId).Create(balance).Error; err != nil {
 		log.Error("Failed to create initial balance",
 			"requestId", requestId,
-			"address", address.String(),
-			"tokenAddress", tokenAddress.String(),
+			"address", address,
+			"tokenAddress", tokenAddress,
 			"error", err,
 		)
 		return nil, fmt.Errorf("create initial balance failed: %w", err)
@@ -218,8 +215,8 @@ func (db *balancesDB) createInitialBalance(
 
 	log.Debug("Created initial balance",
 		"requestId", requestId,
-		"address", address.String(),
-		"tokenAddress", tokenAddress.String(),
+		"address", address,
+		"tokenAddress", tokenAddress,
 	)
 
 	return balance, nil

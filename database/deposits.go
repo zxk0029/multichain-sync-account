@@ -23,18 +23,18 @@ type Deposits struct {
 	TxHash      common.Hash     `gorm:"column:hash;type:varchar;not null;serializer:bytes" json:"hash"`
 	TxType      TransactionType `gorm:"type:varchar;not null" json:"tx_type"`
 
-	FromAddress common.Address `gorm:"type:varchar;not null;serializer:bytes" json:"from_address"`
-	ToAddress   common.Address `gorm:"type:varchar;not null;serializer:bytes" json:"to_address"`
-	Amount      *big.Int       `gorm:"not null;serializer:u256" json:"amount"`
+	FromAddress string   `gorm:"type:varchar;not null" json:"from_address"`
+	ToAddress   string   `gorm:"type:varchar;not null" json:"to_address"`
+	Amount      *big.Int `gorm:"not null;serializer:u256" json:"amount"`
 
 	GasLimit             uint64 `gorm:"not null" json:"gas_limit"`
 	MaxFeePerGas         string `gorm:"type:varchar;not null" json:"max_fee_per_gas"`
 	MaxPriorityFeePerGas string `gorm:"type:varchar;not null" json:"max_priority_fee_per_gas"`
 
-	TokenType    TokenType      `gorm:"type:varchar;not null" json:"token_type"`
-	TokenAddress common.Address `gorm:"type:varchar;not null;serializer:bytes" json:"token_address"`
-	TokenId      string         `gorm:"type:varchar;not null" json:"token_id"`
-	TokenMeta    string         `gorm:"type:varchar;not null" json:"token_meta"`
+	TokenType    TokenType `gorm:"type:varchar;not null" json:"token_type"`
+	TokenAddress string    `gorm:"type:varchar;not null" json:"token_address"`
+	TokenId      string    `gorm:"type:varchar;not null" json:"token_id"`
+	TokenMeta    string    `gorm:"type:varchar;not null" json:"token_meta"`
 
 	TxSignHex string `gorm:"type:varchar;not null" json:"tx_sign_hex"`
 }

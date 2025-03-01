@@ -2,22 +2,23 @@ package database
 
 import (
 	"errors"
-	"gorm.io/gorm"
 	"math/big"
+
+	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
 
 type Tokens struct {
-	GUID          uuid.UUID      `gorm:"primaryKey" json:"guid"`
-	TokenAddress  common.Address `gorm:"serializer:bytes" json:"token_address"`
-	Decimals      uint8          `json:"uint"`
-	TokenName     string         `json:"tokens_name"`
-	CollectAmount *big.Int       `gorm:"serializer:u256" json:"collect_amount"`
-	ColdAmount    *big.Int       `gorm:"serializer:u256" json:"cold_amount"`
-	Timestamp     uint64         `json:"timestamp"`
+	GUID          uuid.UUID `gorm:"primaryKey" json:"guid"`
+	TokenAddress  string    `gorm:"type:varchar" json:"token_address"`
+	Decimals      uint8     `json:"uint"`
+	TokenName     string    `json:"tokens_name"`
+	CollectAmount *big.Int  `gorm:"serializer:u256" json:"collect_amount"`
+	ColdAmount    *big.Int  `gorm:"serializer:u256" json:"cold_amount"`
+	Timestamp     uint64    `json:"timestamp"`
 }
 
 type TokensView interface {
@@ -27,7 +28,7 @@ type TokensView interface {
 type TokensDB interface {
 	TokensView
 
-	StoreTokens(string, []Tokens) error
+	StoreTokens(requestId string, chainName string, tokens []Tokens) error
 }
 
 type tokensDB struct {
@@ -38,9 +39,9 @@ func NewTokensDB(db *gorm.DB) TokensDB {
 	return &tokensDB{gorm: db}
 }
 
-func (db *tokensDB) StoreTokens(requestId string, tokenList []Tokens) error {
-	result := db.gorm.Table("tokens_"+requestId).CreateInBatches(&tokenList, len(tokenList))
-	return result.Error
+func (db *tokensDB) StoreTokens(requestId string, chainName string, tokenList []Tokens) error {
+	tableName := utils.GetTableName("tokens", requestId, chainName)
+	return db.gorm.Table(tableName).CreateInBatches(&tokenList, len(tokenList)).Error
 }
 
 func (db *tokensDB) TokensInfoByAddress(requestId string, address string) (*Tokens, error) {

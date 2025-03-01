@@ -131,9 +131,9 @@ func TestDeposit_depostit(t *testing.T) {
 	balances = append(
 		balances,
 		&database.TokenBalance{
-			FromAddress:  common.HexToAddress("0x101b37f4544c26047d37df59b13a2444eda192a1"),
-			ToAddress:    common.HexToAddress("0x90c35397f35b54f20060c958074ebe9646a1957e"),
-			TokenAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
+			FromAddress:  "0x101b37f4544c26047d37df59b13a2444eda192a1",
+			ToAddress:    "0x90c35397f35b54f20060c958074ebe9646a1957e",
+			TokenAddress: "0x0000000000000000000000000000000000000000",
 			Balance:      balancesamount,
 			TxType:       database.TxTypeDeposit,
 		},

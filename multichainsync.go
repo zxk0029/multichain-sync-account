@@ -39,7 +39,7 @@ func NewMultiChainSync(ctx context.Context, cfg *config.Config, shutdown context
 		return nil, err
 	}
 	client := account.NewWalletAccountServiceClient(conn)
-	accountClient, err := rpcclient.NewWalletChainAccountClient(context.Background(), client, "Ethereum")
+	accountClient, err := rpcclient.NewWalletChainAccountClient(context.Background(), client, cfg.ChainNode.ChainName)
 	if err != nil {
 		log.Error("new wallet account client fail", "err", err)
 		return nil, err

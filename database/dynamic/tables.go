@@ -4,56 +4,72 @@ import (
 	"fmt"
 
 	"github.com/dapplink-labs/multichain-sync-account/database"
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
 
-func CreateTableFromTemplate(requestId string, db *database.DB) {
-	createAddresses(requestId, db)
-	createTokens(requestId, db)
-	createBalances(requestId, db)
-	createDeposits(requestId, db)
-	createTransactions(requestId, db)
-	createWithdraws(requestId, db)
-	createInternals(requestId, db)
+func CreateTableFromTemplate(requestId string, chainName string, db *database.DB) error {
+	if err := createAddresses(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create addresses table: %w", err)
+	}
+	if err := createTokens(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create tokens table: %w", err)
+	}
+	if err := createBalances(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create balances table: %w", err)
+	}
+	if err := createDeposits(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create deposits table: %w", err)
+	}
+	if err := createTransactions(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create transactions table: %w", err)
+	}
+	if err := createWithdraws(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create withdraws table: %w", err)
+	}
+	if err := createInternals(requestId, chainName, db); err != nil {
+		return fmt.Errorf("failed to create internals table: %w", err)
+	}
+	return nil
 }
 
-func createAddresses(requestId string, db *database.DB) {
+func createAddresses(requestId string, chainName string, db *database.DB) error {
 	tableName := "addresses"
-	tableNameByChainId := fmt.Sprintf("addresses_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }
 
-func createTokens(requestId string, db *database.DB) {
+func createTokens(requestId string, chainName string, db *database.DB) error {
 	tableName := "tokens"
-	tableNameByChainId := fmt.Sprintf("tokens_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }
 
-func createBalances(requestId string, db *database.DB) {
+func createBalances(requestId string, chainName string, db *database.DB) error {
 	tableName := "balances"
-	tableNameByChainId := fmt.Sprintf("balances_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }
 
-func createDeposits(requestId string, db *database.DB) {
+func createDeposits(requestId string, chainName string, db *database.DB) error {
 	tableName := "deposits"
-	tableNameByChainId := fmt.Sprintf("deposits_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }
 
-func createTransactions(requestId string, db *database.DB) {
+func createTransactions(requestId string, chainName string, db *database.DB) error {
 	tableName := "transactions"
-	tableNameByChainId := fmt.Sprintf("transactions_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }
 
-func createWithdraws(requestId string, db *database.DB) {
+func createWithdraws(requestId string, chainName string, db *database.DB) error {
 	tableName := "withdraws"
-	tableNameByChainId := fmt.Sprintf("withdraws_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }
 
-func createInternals(requestId string, db *database.DB) {
+func createInternals(requestId string, chainName string, db *database.DB) error {
 	tableName := "internals"
-	tableNameByChainId := fmt.Sprintf("internals_%s", requestId)
-	db.CreateTable.CreateTable(tableNameByChainId, tableName)
+	tableNameByChain := utils.GetTableName(tableName, requestId, chainName)
+	return db.CreateTable.CreateTable(tableNameByChain, tableName)
 }

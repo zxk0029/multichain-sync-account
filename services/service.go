@@ -28,6 +28,7 @@ type BusinessMiddleWireServices struct {
 	accountClient *rpcclient.WalletChainAccountClient
 	db            *database.DB
 	stopped       atomic.Bool
+	chainName     string
 }
 
 func (bws *BusinessMiddleWireServices) Stop(ctx context.Context) error {
@@ -44,6 +45,7 @@ func NewBusinessMiddleWireServices(db *database.DB, config *BusinessMiddleConfig
 		BusinessMiddleConfig: config,
 		accountClient:        accountClient,
 		db:                   db,
+		chainName:            accountClient.ChainName,
 	}, nil
 }
 

@@ -24,9 +24,9 @@ type Internals struct {
 	TxType      TransactionType `json:"tx_type" gorm:"column:tx_type"`
 
 	// 交易基础信息
-	FromAddress common.Address `json:"from_address" gorm:"serializer:bytes;column:from_address"`
-	ToAddress   common.Address `json:"to_address" gorm:"serializer:bytes;column:to_address"`
-	Amount      *big.Int       `gorm:"serializer:u256;column:amount" json:"amount"`
+	FromAddress string   `json:"from_address" gorm:"column:from_address"`
+	ToAddress   string   `json:"to_address" gorm:"column:to_address"`
+	Amount      *big.Int `gorm:"serializer:u256;column:amount" json:"amount"`
 
 	// Gas 费用
 	GasLimit             uint64 `json:"gas_limit"`
@@ -34,10 +34,10 @@ type Internals struct {
 	MaxPriorityFeePerGas string `json:"max_priority_fee_per_gas"`
 
 	// Token 相关信息
-	TokenType    TokenType      `json:"token_type" gorm:"column:token_type"` // ETH, ERC20, ERC721, ERC1155
-	TokenAddress common.Address `json:"token_address" gorm:"serializer:bytes;column:token_address"`
-	TokenId      string         `json:"token_id" gorm:"column:token_id"`     // ERC721/ERC1155 的 token ID
-	TokenMeta    string         `json:"token_meta" gorm:"column:token_meta"` // Token 元数据
+	TokenType    TokenType `json:"token_type" gorm:"column:token_type"` // ETH, ERC20, ERC721, ERC1155
+	TokenAddress string    `json:"token_address" gorm:"column:token_address"`
+	TokenId      string    `json:"token_id" gorm:"column:token_id"`     // ERC721/ERC1155 的 token ID
+	TokenMeta    string    `json:"token_meta" gorm:"column:token_meta"` // Token 元数据
 
 	// 交易签名
 	TxSignHex string `json:"tx_sign_hex" gorm:"column:tx_sign_hex"`

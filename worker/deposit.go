@@ -155,9 +155,9 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			balances = append(
 				balances,
 				&database.TokenBalance{
-					FromAddress:  common.HexToAddress(tx.FromAddress),
-					ToAddress:    common.HexToAddress(txItem.Tos[0].Address),
-					TokenAddress: common.HexToAddress(txItem.ContractAddress),
+					FromAddress:  tx.FromAddress,
+					ToAddress:    txItem.Tos[0].Address,
+					TokenAddress: txItem.ContractAddress,
 					Balance:      amountBigInt,
 					TxType:       tx.TxType,
 				},
@@ -205,7 +205,7 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 
 				if len(balances) > 0 {
 					log.Info("Handle balances success", "totalTx", len(balances))
-					if err := tx.Balances.UpdateOrCreate(business.BusinessUid, balances); err != nil {
+					if err := tx.Balances.UpdateOrCreate(business.BusinessUid, business.ChainName, balances); err != nil {
 						return err
 					}
 				}
@@ -248,9 +248,9 @@ func (deposit *Deposit) HandleDeposit(tx *Transaction, txMsg *account.TxMessage)
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
 		TxHash:       common.HexToHash(tx.Hash),
-		FromAddress:  common.HexToAddress(tx.FromAddress),
-		ToAddress:    common.HexToAddress(tx.ToAddress),
-		TokenAddress: common.HexToAddress(tx.TokenAddress),
+		FromAddress:  tx.FromAddress,
+		ToAddress:    tx.ToAddress,
+		TokenAddress: tx.TokenAddress,
 		TokenId:      "0x00",
 		TokenMeta:    "0x00",
 		MaxFeePerGas: txMsg.Fee,
@@ -269,9 +269,9 @@ func (deposit *Deposit) HandleWithdraw(tx *Transaction, txMsg *account.TxMessage
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
 		TxHash:       common.HexToHash(tx.Hash),
-		FromAddress:  common.HexToAddress(tx.FromAddress),
-		ToAddress:    common.HexToAddress(tx.ToAddress),
-		TokenAddress: common.HexToAddress(tx.TokenAddress),
+		FromAddress:  tx.FromAddress,
+		ToAddress:    tx.ToAddress,
+		TokenAddress: tx.TokenAddress,
 		TokenId:      "0x00",
 		TokenMeta:    "0x00",
 		MaxFeePerGas: txMsg.Fee,
@@ -290,9 +290,9 @@ func (deposit *Deposit) HandleInternalTx(tx *Transaction, txMsg *account.TxMessa
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
 		TxHash:       common.HexToHash(tx.Hash),
-		FromAddress:  common.HexToAddress(tx.FromAddress),
-		ToAddress:    common.HexToAddress(tx.ToAddress),
-		TokenAddress: common.HexToAddress(tx.TokenAddress),
+		FromAddress:  tx.FromAddress,
+		ToAddress:    tx.ToAddress,
+		TokenAddress: tx.TokenAddress,
 		TokenId:      "0x00",
 		TokenMeta:    "0x00",
 		MaxFeePerGas: txMsg.Fee,

@@ -7,19 +7,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
 
 type Addresses struct {
-	GUID        uuid.UUID      `gorm:"primary_key" json:"guid"`
-	Address     common.Address `gorm:"type:varchar;unique;not null;serializer:bytes" json:"address"`
-	AddressType AddressType    `gorm:"type:varchar(10);not null;default:'eoa'" json:"address_type"`
-	PublicKey   string         `gorm:"type:varchar;not null" json:"public_key"`
-	Timestamp   uint64         `gorm:"type:bigint;not null;check:timestamp > 0" json:"timestamp"`
+	GUID        uuid.UUID   `gorm:"primary_key" json:"guid"`
+	Address     string      `gorm:"type:varchar;unique;not null" json:"address"`
+	AddressType AddressType `gorm:"type:varchar(10);not null;default:'eoa'" json:"address_type"`
+	PublicKey   string      `gorm:"type:varchar;not null" json:"public_key"`
+	Timestamp   uint64      `gorm:"type:bigint;not null;check:timestamp > 0" json:"timestamp"`
 }
 
 type AddressesView interface {
-	AddressExist(requestId string, address *common.Address) (bool, AddressType)
-	QueryAddressesByToAddress(string, *common.Address) (*Addresses, error)
+	AddressExist(requestId string, chainName string, address string) (bool, AddressType)
+	QueryAddressesByToAddress(requestId string, chainName string, address string) (*Addresses, error)
 	QueryHotWalletInfo(string) (*Addresses, error)
 	QueryColdWalletInfo(string) (*Addresses, error)
 	GetAllAddresses(string) ([]*Addresses, error)
@@ -28,7 +30,7 @@ type AddressesView interface {
 type AddressesDB interface {
 	AddressesView
 
-	StoreAddresses(string, []*Addresses) error
+	StoreAddresses(requestId string, chainName string, addresses []*Addresses) error
 }
 
 func NewAddressesDB(db *gorm.DB) AddressesDB {
@@ -39,10 +41,11 @@ type addressesDB struct {
 	gorm *gorm.DB
 }
 
-func (db *addressesDB) AddressExist(requestId string, address *common.Address) (bool, AddressType) {
+func (db *addressesDB) AddressExist(requestId string, chainName string, address string) (bool, AddressType) {
 	var addressEntry Addresses
-	err := db.gorm.Table("addresses_"+requestId).
-		Where("address = ?", strings.ToLower(address.String())).
+	tableName := utils.GetTableName("addresses", requestId, chainName)
+	err := db.gorm.Table(tableName).
+		Where("address = ?", strings.ToLower(address)).
 		First(&addressEntry).Error
 
 	if err != nil {
@@ -54,10 +57,11 @@ func (db *addressesDB) AddressExist(requestId string, address *common.Address) (
 	return true, addressEntry.AddressType
 }
 
-func (db *addressesDB) QueryAddressesByToAddress(requestId string, address *common.Address) (*Addresses, error) {
+func (db *addressesDB) QueryAddressesByToAddress(requestId string, chainName string, address string) (*Addresses, error) {
 	var addressEntry Addresses
-	err := db.gorm.Table("addresses_"+requestId).
-		Where("address = ?", strings.ToLower(address.String())).
+	tableName := utils.GetTableName("addresses", requestId, chainName)
+	err := db.gorm.Table(tableName).
+		Where("address = ?", strings.ToLower(address)).
 		Take(&addressEntry).Error
 
 	if err != nil {
@@ -70,13 +74,9 @@ func (db *addressesDB) QueryAddressesByToAddress(requestId string, address *comm
 }
 
 // StoreAddresses store address
-func (db *addressesDB) StoreAddresses(requestId string, addressList []*Addresses) error {
-	for _, addr := range addressList {
-		addr.Address = common.HexToAddress(addr.Address.Hex())
-	}
-
-	return db.gorm.Table("addresses_"+requestId).
-		CreateInBatches(&addressList, len(addressList)).Error
+func (db *addressesDB) StoreAddresses(requestId string, chainName string, addressList []*Addresses) error {
+	tableName := utils.GetTableName("addresses", requestId, chainName)
+	return db.gorm.Table(tableName).CreateInBatches(&addressList, len(addressList)).Error
 }
 
 func (db *addressesDB) QueryHotWalletInfo(requestId string) (*Addresses, error) {
@@ -122,7 +122,7 @@ func (db *addressesDB) GetAllAddresses(requestId string) ([]*Addresses, error) {
 }
 
 func (a *Addresses) Validate() error {
-	if a.Address == (common.Address{}) {
+	if a.Address == (common.Address{}.String()) {
 		return errors.New("invalid address")
 	}
 	if a.PublicKey == "" {

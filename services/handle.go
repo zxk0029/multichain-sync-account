@@ -19,11 +19,11 @@ import (
 	"github.com/dapplink-labs/multichain-sync-account/database/dynamic"
 	dal_wallet_go "github.com/dapplink-labs/multichain-sync-account/protobuf/dal-wallet-go"
 	"github.com/dapplink-labs/multichain-sync-account/rpcclient/chain-account/account"
+	"gorm.io/gorm"
 )
 
 const (
-	ChainName = "Ethereum"
-	Network   = "mainnet"
+	Network = "mainnet"
 )
 
 var (
@@ -41,21 +41,43 @@ func (bws *BusinessMiddleWireServices) BusinessRegister(ctx context.Context, req
 			Msg:  "invalid params",
 		}, nil
 	}
-	business := &database.Business{
-		GUID:        uuid.New(),
-		BusinessUid: request.RequestId,
-		NotifyUrl:   request.NotifyUrl,
-		Timestamp:   uint64(time.Now().Unix()),
-	}
-	err := bws.db.Business.StoreBusiness(business)
-	if err != nil {
-		log.Error("store business fail", "err", err)
+
+	// 1. 检查业务是否已存在
+	existingBusiness, err := bws.db.Business.QueryBusinessByUuid(request.RequestId)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Error("query business fail", "err", err)
 		return &dal_wallet_go.BusinessRegisterResponse{
 			Code: dal_wallet_go.ReturnCode_ERROR,
-			Msg:  "store db fail",
+			Msg:  "database error",
 		}, nil
 	}
-	dynamic.CreateTableFromTemplate(request.RequestId, bws.db)
+
+	// 2. 如果业务不存在，创建新业务
+	if existingBusiness == nil {
+		business := &database.Business{
+			GUID:        uuid.New(),
+			BusinessUid: request.RequestId,
+			NotifyUrl:   request.NotifyUrl,
+			Timestamp:   uint64(time.Now().Unix()),
+		}
+		if err := bws.db.Business.StoreBusiness(business); err != nil {
+			log.Error("store business fail", "err", err)
+			return &dal_wallet_go.BusinessRegisterResponse{
+				Code: dal_wallet_go.ReturnCode_ERROR,
+				Msg:  "store db fail",
+			}, nil
+		}
+	}
+
+	// 3. 创建或更新业务链关系和相关表
+	if err := dynamic.CreateTableFromTemplate(request.RequestId, bws.accountClient.ChainName, bws.db); err != nil {
+		log.Error("create tables fail", "err", err, "chain", bws.accountClient.ChainName)
+		return &dal_wallet_go.BusinessRegisterResponse{
+			Code: dal_wallet_go.ReturnCode_ERROR,
+			Msg:  fmt.Sprintf("failed to create tables for chain %s", bws.accountClient.ChainName),
+		}, nil
+	}
+
 	return &dal_wallet_go.BusinessRegisterResponse{
 		Code: dal_wallet_go.ReturnCode_SUCCESS,
 		Msg:  "config business success",
@@ -86,7 +108,7 @@ func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.C
 
 		dbAddress := &database.Addresses{
 			GUID:        uuid.New(),
-			Address:     common.HexToAddress(address),
+			Address:     address,
 			AddressType: parseAddressType,
 			PublicKey:   value.PublicKey,
 			Timestamp:   uint64(time.Now().Unix()),
@@ -95,8 +117,8 @@ func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.C
 
 		balanceItem := &database.Balances{
 			GUID:         uuid.New(),
-			Address:      common.HexToAddress(address),
-			TokenAddress: common.Address{},
+			Address:      address,
+			TokenAddress: common.Address{}.String(),
 			AddressType:  parseAddressType,
 			Balance:      big.NewInt(int64(balance)),
 			LockBalance:  big.NewInt(0),
@@ -106,14 +128,14 @@ func (bws *BusinessMiddleWireServices) ExportAddressesByPublicKeys(ctx context.C
 
 		retAddressess = append(retAddressess, item)
 	}
-	err := bws.db.Addresses.StoreAddresses(request.RequestId, dbAddresses)
+	err := bws.db.Addresses.StoreAddresses(request.RequestId, bws.accountClient.ChainName, dbAddresses)
 	if err != nil {
 		return &dal_wallet_go.ExportAddressesResponse{
 			Code: dal_wallet_go.ReturnCode_ERROR,
 			Msg:  "store address to db fail",
 		}, nil
 	}
-	err = bws.db.Balances.StoreBalances(request.RequestId, balances)
+	err = bws.db.Balances.StoreBalances(request.RequestId, bws.accountClient.ChainName, balances)
 	if err != nil {
 		return &dal_wallet_go.ExportAddressesResponse{
 			Code: dal_wallet_go.ReturnCode_ERROR,
@@ -148,11 +170,12 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 	}
 	guid := uuid.New()
 
-	nonce, err := bws.getAccountNonce(ctx, request.From)
+	nonceStr, err := bws.getAccountNonce(ctx, request.Chain, request.From)
 	if err != nil {
 		return nil, fmt.Errorf("get account nonce failed: %w", err)
 	}
-	feeInfo, err := bws.getFeeInfo(ctx, request.From)
+
+	feeInfo, err := bws.getFeeInfo(ctx, request.Chain, request.From)
 	if err != nil {
 		return nil, fmt.Errorf("get fee info failed: %w", err)
 	}
@@ -178,25 +201,49 @@ func (bws *BusinessMiddleWireServices) CreateUnSignTransaction(ctx context.Conte
 		return response, nil
 	}
 
-	dynamicFeeTxReq := Eip1559DynamicFeeTx{
-		ChainId:              request.ChainId,
-		Nonce:                uint64(nonce),
-		FromAddress:          request.From,
-		ToAddress:            request.To,
-		GasLimit:             gasLimit,
-		MaxFeePerGas:         feeInfo.MaxPriorityFee.String(),
-		MaxPriorityFeePerGas: feeInfo.MultipliedTip.String(),
-		Amount:               request.Value,
-		ContractAddress:      contractAddress,
+	// 构建交易请求
+	var base64Str string
+	if config, ok := database.ChainTokenTypes[strings.ToLower(request.Chain)]; ok && config.IsEVM {
+		// EVM 链使用 EIP-1559 交易格式
+		nonce, err := strconv.ParseUint(nonceStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid nonce value: %w", err)
+		}
+
+		dynamicFeeTxReq := Eip1559DynamicFeeTx{
+			ChainId:              request.ChainId,
+			Nonce:                nonce,
+			FromAddress:          request.From,
+			ToAddress:            request.To,
+			GasLimit:             gasLimit,
+			MaxFeePerGas:         feeInfo.MaxPriorityFee.String(),
+			MaxPriorityFeePerGas: feeInfo.MultipliedTip.String(),
+			Amount:               request.Value,
+			ContractAddress:      contractAddress,
+		}
+		data := json2.ToJSON(dynamicFeeTxReq)
+		base64Str = base64.StdEncoding.EncodeToString(data)
+	} else {
+		// 非 EVM 链使用各自的交易格式
+		txReq := map[string]interface{}{
+			"chain":           request.Chain,
+			"from":            request.From,
+			"to":              request.To,
+			"amount":          request.Value,
+			"nonce":           nonceStr, // 使用原始 nonce 字符串
+			"contractAddress": contractAddress,
+			"gasLimit":        gasLimit,
+		}
+		data := json2.ToJSON(txReq)
+		base64Str = base64.StdEncoding.EncodeToString(data)
 	}
-	data := json2.ToJSON(dynamicFeeTxReq)
-	log.Info("BusinessMiddleWireServices CreateUnSignTransaction dynamicFeeTxReq", json2.ToJSONString(dynamicFeeTxReq))
-	base64Str := base64.StdEncoding.EncodeToString(data)
+
 	unsignTx := &account.UnSignTransactionRequest{
-		Chain:    ChainName,
+		Chain:    request.Chain,
 		Network:  Network,
 		Base64Tx: base64Str,
 	}
+
 	log.Info("BusinessMiddleWireServices CreateUnSignTransaction unsignTx", json2.ToJSONString(unsignTx))
 	returnTx, err := bws.accountClient.AccountRpClient.CreateUnSignTransaction(ctx, unsignTx)
 	log.Info("BusinessMiddleWireServices CreateUnSignTransaction returnTx", json2.ToJSONString(returnTx))
@@ -242,10 +289,10 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			response.Msg = "Deposit transaction not found"
 			return response, nil
 		}
-		fromAddress = tx.FromAddress.String()
-		toAddress = tx.ToAddress.String()
+		fromAddress = tx.FromAddress
+		toAddress = tx.ToAddress
 		amount = tx.Amount.String()
-		tokenAddress = tx.TokenAddress.String()
+		tokenAddress = tx.TokenAddress
 		gasLimit = tx.GasLimit
 		maxFeePerGas = tx.MaxFeePerGas
 		maxPriorityFeePerGas = tx.MaxPriorityFeePerGas
@@ -259,10 +306,10 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			response.Msg = "Withdraw transaction not found"
 			return response, nil
 		}
-		fromAddress = tx.FromAddress.String()
-		toAddress = tx.ToAddress.String()
+		fromAddress = tx.FromAddress
+		toAddress = tx.ToAddress
 		amount = tx.Amount.String()
-		tokenAddress = tx.TokenAddress.String()
+		tokenAddress = tx.TokenAddress
 		gasLimit = tx.GasLimit
 		maxFeePerGas = tx.MaxFeePerGas
 		maxPriorityFeePerGas = tx.MaxPriorityFeePerGas
@@ -276,10 +323,10 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 			response.Msg = "Internal transaction not found"
 			return response, nil
 		}
-		fromAddress = tx.FromAddress.String()
-		toAddress = tx.ToAddress.String()
+		fromAddress = tx.FromAddress
+		toAddress = tx.ToAddress
 		amount = tx.Amount.String()
-		tokenAddress = tx.TokenAddress.String()
+		tokenAddress = tx.TokenAddress
 		gasLimit = tx.GasLimit
 		maxFeePerGas = tx.MaxFeePerGas
 		maxPriorityFeePerGas = tx.MaxPriorityFeePerGas
@@ -291,37 +338,60 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 	}
 
 	// 2. Get current nonce
-	nonce, err := bws.getAccountNonce(ctx, fromAddress)
+	nonceStr, err := bws.getAccountNonce(ctx, request.Chain, fromAddress)
 	if err != nil {
 		return nil, fmt.Errorf("get account nonce failed: %w", err)
 	}
 
-	// 3. Build EIP-1559 transaction
-	dynamicFeeTx := Eip1559DynamicFeeTx{
-		ChainId:              request.ChainId,
-		Nonce:                uint64(nonce),
-		FromAddress:          fromAddress,
-		ToAddress:            toAddress,
-		GasLimit:             gasLimit,
-		MaxFeePerGas:         maxFeePerGas,
-		MaxPriorityFeePerGas: maxPriorityFeePerGas,
-		Amount:               amount,
-		ContractAddress:      tokenAddress,
+	// 3. Build transaction data
+	var base64Str string
+	if config, ok := database.ChainTokenTypes[strings.ToLower(request.Chain)]; ok && config.IsEVM {
+		// Convert nonce for EVM chains
+		nonce, err := strconv.ParseUint(nonceStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid nonce value: %w", err)
+		}
+
+		// Build EIP-1559 transaction
+		dynamicFeeTx := Eip1559DynamicFeeTx{
+			ChainId:              request.ChainId,
+			Nonce:                nonce,
+			FromAddress:          fromAddress,
+			ToAddress:            toAddress,
+			GasLimit:             gasLimit,
+			MaxFeePerGas:         maxFeePerGas,
+			MaxPriorityFeePerGas: maxPriorityFeePerGas,
+			Amount:               amount,
+			ContractAddress:      tokenAddress,
+		}
+		data := json2.ToJSON(dynamicFeeTx)
+		base64Str = base64.StdEncoding.EncodeToString(data)
+	} else {
+		// Non-EVM chains use their own transaction format
+		txReq := map[string]interface{}{
+			"chain":           request.Chain,
+			"from":            fromAddress,
+			"to":              toAddress,
+			"amount":          amount,
+			"nonce":           nonceStr, // Use original nonce string
+			"contractAddress": tokenAddress,
+			"gasLimit":        gasLimit,
+		}
+		data := json2.ToJSON(txReq)
+		base64Str = base64.StdEncoding.EncodeToString(data)
 	}
 
 	// 4. Build signed transaction
-	data := json2.ToJSON(dynamicFeeTx)
-	base64Str := base64.StdEncoding.EncodeToString(data)
 	signedTxReq := &account.SignedTransactionRequest{
-		Chain:     ChainName,
+		Chain:     request.Chain,
 		Network:   Network,
 		Signature: request.Signature,
 		Base64Tx:  base64Str,
 	}
 
-	log.Info("BuildSignedTransaction request", "dynamicFeeTx", json2.ToJSONString(dynamicFeeTx))
+	log.Info("BuildSignedTransaction request", "base64Tx", base64Str)
 	returnTx, err := bws.accountClient.AccountRpClient.BuildSignedTransaction(ctx, signedTxReq)
-	log.Info("BuildSignedTransaction request", "returnTx", json2.ToJSONString(returnTx))
+	log.Info("BuildSignedTransaction response", "returnTx", json2.ToJSONString(returnTx))
 	if err != nil {
 		return nil, fmt.Errorf("build signed transaction failed: %w", err)
 	}
@@ -360,7 +430,7 @@ func (bws *BusinessMiddleWireServices) SetTokenAddress(ctx context.Context, requ
 		ColdAmountBigInt, _ := new(big.Int).SetString(value.ColdAmount, 10)
 		token := database.Tokens{
 			GUID:          uuid.New(),
-			TokenAddress:  common.HexToAddress(value.Address),
+			TokenAddress:  value.Address,
 			Decimals:      uint8(value.Decimals),
 			TokenName:     value.TokenName,
 			CollectAmount: CollectAmountBigInt,
@@ -369,7 +439,7 @@ func (bws *BusinessMiddleWireServices) SetTokenAddress(ctx context.Context, requ
 		}
 		tokenList = append(tokenList, token)
 	}
-	err := bws.db.Tokens.StoreTokens(request.RequestId, tokenList)
+	err := bws.db.Tokens.StoreTokens(request.RequestId, bws.accountClient.ChainName, tokenList)
 	if err != nil {
 		log.Error("set token address fail", "err", err)
 		return nil, err
@@ -460,17 +530,17 @@ func validateRequest(request *dal_wallet_go.UnSignTransactionRequest) error {
 	return nil
 }
 
-func determineTokenType(contractAddress string) database.TokenType {
+func determineTokenType(chainName, contractAddress string) database.TokenType {
 	if contractAddress == "0x00" {
-		return database.TokenTypeETH
+		contractAddress = common.Address{}.String()
 	}
-	// 这里可以添加更多的 token 类型判断逻辑
-	return database.TokenTypeERC20
+	isNative := contractAddress == database.GetNativeAddress(chainName)
+	return database.GetTokenType(chainName, isNative)
 }
 
-func (bws *BusinessMiddleWireServices) getAccountNonce(ctx context.Context, address string) (int, error) {
+func (bws *BusinessMiddleWireServices) getAccountNonce(ctx context.Context, chain, address string) (string, error) {
 	accountReq := &account.AccountRequest{
-		Chain:           ChainName,
+		Chain:           chain,
 		Network:         Network,
 		Address:         address,
 		ContractAddress: "0x00",
@@ -478,15 +548,16 @@ func (bws *BusinessMiddleWireServices) getAccountNonce(ctx context.Context, addr
 
 	accountInfo, err := bws.accountClient.AccountRpClient.GetAccount(ctx, accountReq)
 	if err != nil {
-		return 0, fmt.Errorf("get account info failed: %w", err)
+		return "", fmt.Errorf("get account info failed: %w", err)
 	}
 
-	return strconv.Atoi(accountInfo.Sequence)
+	return accountInfo.Sequence, nil
 }
 
-func (bws *BusinessMiddleWireServices) getFeeInfo(ctx context.Context, address string) (*FeeInfo, error) {
+// TODO Solana链需要传入构建后的交易，才能获取交易费用。需要在上游服务（wallet-chain-account）进行处理
+func (bws *BusinessMiddleWireServices) getFeeInfo(ctx context.Context, chain, address string) (*FeeInfo, error) {
 	accountFeeReq := &account.FeeRequest{
-		Chain:   ChainName,
+		Chain:   chain,
 		Network: Network,
 		RawTx:   "",
 		Address: address,
@@ -518,14 +589,14 @@ func (bws *BusinessMiddleWireServices) storeWithdraw(request *dal_wallet_go.UnSi
 		BlockNumber:          big.NewInt(1),
 		TxHash:               common.Hash{},
 		TxType:               transactionType,
-		FromAddress:          common.HexToAddress(request.From),
-		ToAddress:            common.HexToAddress(request.To),
+		FromAddress:          request.From,
+		ToAddress:            request.To,
 		Amount:               amountBig,
 		GasLimit:             gasLimit,
 		MaxFeePerGas:         feeInfo.MaxPriorityFee.String(),
 		MaxPriorityFeePerGas: feeInfo.MultipliedTip.String(),
-		TokenType:            determineTokenType(request.ContractAddress),
-		TokenAddress:         common.HexToAddress(request.ContractAddress),
+		TokenType:            determineTokenType(request.Chain, request.ContractAddress),
+		TokenAddress:         request.ContractAddress,
 		TokenId:              request.TokenId,
 		TokenMeta:            request.TokenMeta,
 		TxSignHex:            "",
@@ -546,14 +617,14 @@ func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSi
 		BlockNumber:          big.NewInt(1),
 		TxHash:               common.Hash{},
 		TxType:               transactionType,
-		FromAddress:          common.HexToAddress(request.From),
-		ToAddress:            common.HexToAddress(request.To),
+		FromAddress:          request.From,
+		ToAddress:            request.To,
 		Amount:               amountBig,
 		GasLimit:             gasLimit,
 		MaxFeePerGas:         feeInfo.MaxPriorityFee.String(),
 		MaxPriorityFeePerGas: feeInfo.MultipliedTip.String(),
-		TokenType:            determineTokenType(request.ContractAddress),
-		TokenAddress:         common.HexToAddress(request.ContractAddress),
+		TokenType:            determineTokenType(request.Chain, request.ContractAddress),
+		TokenAddress:         request.ContractAddress,
 		TokenId:              request.TokenId,
 		TokenMeta:            request.TokenMeta,
 		TxSignHex:            "",
@@ -565,7 +636,8 @@ func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSi
 func (bws *BusinessMiddleWireServices) StoreDeposits(ctx context.Context,
 	depositsRequest *dal_wallet_go.UnSignTransactionRequest, transactionId uuid.UUID, amountBig *big.Int,
 	gasLimit uint64, feeInfo *FeeInfo, transactionType database.TransactionType) error {
-
+	fmt.Printf("StoreDeposits - Chain: %s, ContractAddress: %s\n",
+		depositsRequest.Chain, depositsRequest.ContractAddress)
 	dbDeposit := &database.Deposits{
 		GUID:                 transactionId,
 		Timestamp:            uint64(time.Now().Unix()),
@@ -575,14 +647,14 @@ func (bws *BusinessMiddleWireServices) StoreDeposits(ctx context.Context,
 		BlockNumber:          big.NewInt(1),
 		TxHash:               common.Hash{},
 		TxType:               transactionType,
-		FromAddress:          common.HexToAddress(depositsRequest.From),
-		ToAddress:            common.HexToAddress(depositsRequest.To),
+		FromAddress:          depositsRequest.From,
+		ToAddress:            depositsRequest.To,
 		Amount:               amountBig,
 		GasLimit:             gasLimit,
 		MaxFeePerGas:         feeInfo.MaxPriorityFee.String(),
 		MaxPriorityFeePerGas: feeInfo.MultipliedTip.String(),
-		TokenType:            determineTokenType(depositsRequest.ContractAddress),
-		TokenAddress:         common.HexToAddress(depositsRequest.ContractAddress),
+		TokenType:            determineTokenType(depositsRequest.Chain, depositsRequest.ContractAddress),
+		TokenAddress:         depositsRequest.ContractAddress,
 		TokenId:              depositsRequest.TokenId,
 		TokenMeta:            depositsRequest.TokenMeta,
 		TxSignHex:            "",

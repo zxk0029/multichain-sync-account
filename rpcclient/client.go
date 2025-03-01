@@ -180,3 +180,21 @@ func (wac *WalletChainAccountClient) SendTx(rawTx string) (string, error) {
 	}
 	return txInfo.TxHash, nil
 }
+
+func (wac *WalletChainAccountClient) ValidAddress(address string) bool {
+	req := &account.ValidAddressRequest{
+		Chain:   wac.ChainName,
+		Network: "mainnet",
+		Address: address,
+	}
+	response, err := wac.AccountRpClient.ValidAddress(wac.Ctx, req)
+	if err != nil {
+		log.Error("validate address fail", "err", err)
+		return false
+	}
+	if response.Code == common.ReturnCode_ERROR {
+		log.Error("validate address fail", "msg", response.Msg)
+		return false
+	}
+	return true
+}

@@ -17,14 +17,119 @@ const (
 	TxStatusSuccess        TxStatus = "success"
 )
 
+// ChainConfig defines the configuration for a blockchain
+type ChainConfig struct {
+	Native        TokenType // Native token type for the chain
+	Default       TokenType // Default token type for the chain
+	IsEVM         bool      // Whether this is an EVM compatible chain
+	NativeAddress string    // Native token contract address
+}
+
+// ChainTokenTypes defines the mapping of chain names to their configurations
+var ChainTokenTypes = map[string]ChainConfig{
+	// EVM compatible chains (all use same zero address format)
+	"ethereum": {
+		Native:        "ETH",
+		Default:       "ERC20",
+		IsEVM:         true,
+		NativeAddress: "0x0000000000000000000000000000000000000000",
+	},
+	"bsc": {
+		Native:        "BNB",
+		Default:       "BEP20",
+		IsEVM:         true,
+		NativeAddress: "0x0000000000000000000000000000000000000000",
+	},
+	"polygon": {
+		Native:        "MATIC",
+		Default:       "ERC20",
+		IsEVM:         true,
+		NativeAddress: "0x0000000000000000000000000000000000000000",
+	},
+	"avalanche-c": {
+		Native:        "AVAX",
+		Default:       "ERC20",
+		IsEVM:         true,
+		NativeAddress: "0x0000000000000000000000000000000000000000",
+	},
+	"arbitrum": {
+		Native:        "ETH",
+		Default:       "ERC20",
+		IsEVM:         true,
+		NativeAddress: "0x0000000000000000000000000000000000000000",
+	},
+	"optimism": {
+		Native:        "ETH",
+		Default:       "ERC20",
+		IsEVM:         true,
+		NativeAddress: "0x0000000000000000000000000000000000000000",
+	},
+
+	// Non-EVM chains
+	"cosmos": {
+		Native:        "ATOM",
+		Default:       "CosmosCoin", // CW20
+		IsEVM:         false,
+		NativeAddress: "",
+	},
+	"solana": {
+		Native:        "SOL",
+		Default:       "SPL",
+		IsEVM:         false,
+		NativeAddress: "11111111111111111111111111111111",
+	},
+	"ton": {
+		Native:        "TON",
+		Default:       "JettonToken", // Added specific token type for TON
+		IsEVM:         false,
+		NativeAddress: "-1:0000000000000000000000000000000000000000000000000000000000000000",
+	},
+	"tron": {
+		Native:        "TRX",
+		Default:       "TRC20",
+		IsEVM:         false,
+		NativeAddress: "",
+	},
+	"xrp": {
+		Native:        "XRP",
+		Default:       "XRP",
+		IsEVM:         false,
+		NativeAddress: "",
+	},
+	"bitcoin": {
+		Native:        "BTC",
+		Default:       "BTC",
+		IsEVM:         false,
+		NativeAddress: "0000000000000000000000000000000000000000",
+	},
+}
+
 type TokenType string
 
-const (
-	TokenTypeETH     TokenType = "ETH"
-	TokenTypeERC20   TokenType = "ERC20"
-	TokenTypeERC721  TokenType = "ERC721"
-	TokenTypeERC1155 TokenType = "ERC1155"
-)
+func (t TokenType) String() string {
+	return string(t)
+}
+
+// GetTokenType returns the appropriate token type based on chain name and whether it's a native token
+func GetTokenType(chainName string, isNative bool) TokenType {
+	chainName = strings.ToLower(chainName)
+	if config, ok := ChainTokenTypes[chainName]; ok {
+		if isNative {
+			return config.Native
+		}
+		return config.Default
+	}
+	// Default to ERC20 for unknown chains
+	return "ERC20"
+}
+
+// GetNativeAddress returns the native token contract address for the given chain
+func GetNativeAddress(chainName string) string {
+	if config, ok := ChainTokenTypes[strings.ToLower(chainName)]; ok {
+		return config.NativeAddress
+	}
+	return "0x0000000000000000000000000000000000000000" // Default to EVM zero address
+}
 
 type AddressType string
 
