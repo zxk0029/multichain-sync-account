@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
 
 type Deposits struct {
@@ -40,30 +41,31 @@ type Deposits struct {
 }
 
 type DepositsView interface {
-	QueryNotifyDeposits(requestId string) ([]*Deposits, error)
-	QueryDepositsByTxHash(requestId string, txHash common.Hash) (*Deposits, error)
-	QueryDepositsById(requestId string, guid string) (*Deposits, error)
+	QueryNotifyDeposits(requestId string, chainName string) ([]*Deposits, error)
+	QueryDepositsByTxHash(requestId string, chainName string, txHash common.Hash) (*Deposits, error)
+	QueryDepositsById(requestId string, chainName string, guid string) (*Deposits, error)
 }
 
 type DepositsDB interface {
 	DepositsView
 
-	StoreDeposits(string, []*Deposits) error
-	UpdateDepositsComfirms(requestId string, blockNumber uint64, confirms uint64) error
-	UpdateDepositById(requestId string, guid string, signedTx string, status TxStatus) error
-	UpdateDepositsStatusById(requestId string, status TxStatus, depositList []*Deposits) error
-	UpdateDepositsStatusByTxHash(requestId string, status TxStatus, depositList []*Deposits) error
-	UpdateDepositListByTxHash(requestId string, depositList []*Deposits) error
-	UpdateDepositListById(requestId string, depositList []*Deposits) error
+	StoreDeposits(requestId string, chainName string, depositList []*Deposits) error
+	UpdateDepositsComfirms(requestId string, chainName string, blockNumber uint64, confirms uint64) error
+	UpdateDepositById(requestId string, chainName string, guid string, signedTx string, status TxStatus) error
+	UpdateDepositsStatusById(requestId string, chainName string, status TxStatus, depositList []*Deposits) error
+	UpdateDepositsStatusByTxHash(requestId string, chainName string, status TxStatus, depositList []*Deposits) error
+	UpdateDepositListByTxHash(requestId string, chainName string, depositList []*Deposits) error
+	UpdateDepositListById(requestId string, chainName string, depositList []*Deposits) error
 }
 
 type depositsDB struct {
 	gorm *gorm.DB
 }
 
-func (db *depositsDB) QueryNotifyDeposits(requestId string) ([]*Deposits, error) {
+func (db *depositsDB) QueryNotifyDeposits(requestId string, chainName string) ([]*Deposits, error) {
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 	var notifyDeposits []*Deposits
-	result := db.gorm.Table("deposits_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("status = ? or status = ?", TxStatusWalletDone, TxStatusNotified).
 		Find(&notifyDeposits) // Correctly populate the slice
 	if result.Error != nil {
@@ -75,9 +77,10 @@ func (db *depositsDB) QueryNotifyDeposits(requestId string) ([]*Deposits, error)
 	return notifyDeposits, nil
 }
 
-func (db *depositsDB) QueryDepositsByTxHash(requestId string, txHash common.Hash) (*Deposits, error) {
+func (db *depositsDB) QueryDepositsByTxHash(requestId string, chainName string, txHash common.Hash) (*Deposits, error) {
 	var deposit Deposits
-	result := db.gorm.Table("deposits_"+requestId).
+	tableName := utils.GetTableName("deposits", requestId, chainName)
+	result := db.gorm.Table(tableName).
 		Where("hash = ?", txHash.String()).
 		Take(&deposit)
 
@@ -91,9 +94,10 @@ func (db *depositsDB) QueryDepositsByTxHash(requestId string, txHash common.Hash
 	return &deposit, nil
 }
 
-func (db *depositsDB) QueryDepositsById(requestId string, guid string) (*Deposits, error) {
+func (db *depositsDB) QueryDepositsById(requestId string, chainName string, guid string) (*Deposits, error) {
 	var deposit Deposits
-	result := db.gorm.Table("deposits_"+requestId).
+	tableName := utils.GetTableName("deposits", requestId, chainName)
+	result := db.gorm.Table(tableName).
 		Where("guid = ?", guid).
 		Take(&deposit)
 
@@ -108,10 +112,11 @@ func (db *depositsDB) QueryDepositsById(requestId string, guid string) (*Deposit
 }
 
 // UpdateDepositsComfirms 查询所有还没有过确认位交易，用最新区块减去对应区块更新确认，如果这个大于我们预设的确认位，那么这笔交易可以认为已经入账
-func (db *depositsDB) UpdateDepositsComfirms(requestId string, blockNumber uint64, confirms uint64) error {
+func (db *depositsDB) UpdateDepositsComfirms(requestId string, chainName string, blockNumber uint64, confirms uint64) error {
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		var unConfirmDeposits []*Deposits
-		result := tx.Table("deposits_"+requestId).
+		result := tx.Table(tableName).
 			Where("block_number <= ? AND status = ?", blockNumber, TxStatusBroadcasted).
 			Find(&unConfirmDeposits)
 		if result.Error != nil {
@@ -126,7 +131,7 @@ func (db *depositsDB) UpdateDepositsComfirms(requestId string, blockNumber uint6
 			} else {
 				deposit.Confirms = uint8(chainConfirm)
 			}
-			if err := tx.Table("deposits_" + requestId).Save(&deposit).Error; err != nil {
+			if err := tx.Table(tableName).Save(&deposit).Error; err != nil {
 				return err
 			}
 		}
@@ -135,11 +140,12 @@ func (db *depositsDB) UpdateDepositsComfirms(requestId string, blockNumber uint6
 	})
 }
 
-func (db *depositsDB) UpdateDepositsStatusById(requestId string, status TxStatus, depositList []*Deposits) error {
+func (db *depositsDB) UpdateDepositsStatusById(requestId string, chainName string, status TxStatus, depositList []*Deposits) error {
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, deposit := range depositList {
 			var depositSingle Deposits
-			result := tx.Table("deposits_"+requestId).Where("guid = ?", deposit.GUID.String()).Take(&depositSingle)
+			result := tx.Table(tableName).Where("guid = ?", deposit.GUID.String()).Take(&depositSingle)
 			if result.Error != nil {
 				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 					continue // Skip if not found
@@ -147,7 +153,7 @@ func (db *depositsDB) UpdateDepositsStatusById(requestId string, status TxStatus
 				return result.Error
 			}
 			depositSingle.Status = status
-			if err := tx.Table("deposits_" + requestId).Save(&depositSingle).Error; err != nil {
+			if err := tx.Table(tableName).Save(&depositSingle).Error; err != nil {
 				return err
 			}
 		}
@@ -156,11 +162,11 @@ func (db *depositsDB) UpdateDepositsStatusById(requestId string, status TxStatus
 	})
 }
 
-func (db *depositsDB) UpdateDepositsStatusByTxHash(requestId string, status TxStatus, depositList []*Deposits) error {
+func (db *depositsDB) UpdateDepositsStatusByTxHash(requestId string, chainName string, status TxStatus, depositList []*Deposits) error {
 	if len(depositList) == 0 {
 		return nil
 	}
-	tableName := fmt.Sprintf("deposits_%s", requestId)
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		var txHashList []string
@@ -193,12 +199,12 @@ func (db *depositsDB) UpdateDepositsStatusByTxHash(requestId string, status TxSt
 	})
 }
 
-func (db *depositsDB) UpdateDepositListByTxHash(requestId string, depositList []*Deposits) error {
+func (db *depositsDB) UpdateDepositListByTxHash(requestId string, chainName string, depositList []*Deposits) error {
 	if len(depositList) == 0 {
 		return nil
 	}
 
-	tableName := fmt.Sprintf("deposits_%s", requestId)
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, deposit := range depositList {
@@ -229,10 +235,11 @@ func (db *depositsDB) UpdateDepositListByTxHash(requestId string, depositList []
 	})
 }
 
-func (db *depositsDB) UpdateDepositById(requestId string, guid string, signedTx string, status TxStatus) error {
+func (db *depositsDB) UpdateDepositById(requestId string, chainName string, guid string, signedTx string, status TxStatus) error {
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		var deposit Deposits
-		result := tx.Table("deposits_"+requestId).
+		result := tx.Table(tableName).
 			Where("guid = ?", guid).
 			Take(&deposit)
 
@@ -246,7 +253,7 @@ func (db *depositsDB) UpdateDepositById(requestId string, guid string, signedTx 
 		deposit.Status = status
 		deposit.TxSignHex = signedTx
 
-		if err := tx.Table("deposits_" + requestId).Save(&deposit).Error; err != nil {
+		if err := tx.Table(tableName).Save(&deposit).Error; err != nil {
 			return fmt.Errorf("failed to update deposit for GUID: %s, error: %w", guid, err)
 		}
 
@@ -258,24 +265,20 @@ func NewDepositsDB(db *gorm.DB) DepositsDB {
 	return &depositsDB{gorm: db}
 }
 
-func (db *depositsDB) StoreDeposits(requestId string, depositList []*Deposits) error {
+func (db *depositsDB) StoreDeposits(requestId string, chainName string, depositList []*Deposits) error {
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 	if len(depositList) == 0 {
 		return nil
 	}
-	result := db.gorm.Table("deposits_"+requestId).CreateInBatches(depositList, len(depositList))
-	if result.Error != nil {
-		log.Error("create deposit batch fail", "Err", result.Error)
-		return result.Error
-	}
-	return nil
+	return db.gorm.Table(tableName).CreateInBatches(depositList, len(depositList)).Error
 }
 
-func (db *depositsDB) UpdateDepositListById(requestId string, depositList []*Deposits) error {
+func (db *depositsDB) UpdateDepositListById(requestId string, chainName string, depositList []*Deposits) error {
 	if len(depositList) == 0 {
 		return nil
 	}
 
-	tableName := fmt.Sprintf("deposits_%s", requestId)
+	tableName := utils.GetTableName("deposits", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, deposit := range depositList {

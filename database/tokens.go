@@ -22,7 +22,7 @@ type Tokens struct {
 }
 
 type TokensView interface {
-	TokensInfoByAddress(string, string) (*Tokens, error)
+	TokensInfoByAddress(requestId string, chainName string, address string) (*Tokens, error)
 }
 
 type TokensDB interface {
@@ -44,9 +44,10 @@ func (db *tokensDB) StoreTokens(requestId string, chainName string, tokenList []
 	return db.gorm.Table(tableName).CreateInBatches(&tokenList, len(tokenList)).Error
 }
 
-func (db *tokensDB) TokensInfoByAddress(requestId string, address string) (*Tokens, error) {
+func (db *tokensDB) TokensInfoByAddress(requestId string, chainName string, address string) (*Tokens, error) {
 	var tokensEntry Tokens
-	err := db.gorm.Table("tokens_"+requestId).Where("token_address", address).Take(&tokensEntry).Error
+	tableName := utils.GetTableName("tokens", requestId, chainName)
+	err := db.gorm.Table(tableName).Where("token_address", address).Take(&tokensEntry).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

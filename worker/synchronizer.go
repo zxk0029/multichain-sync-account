@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/dapplink-labs/multichain-sync-account/common/clock"
@@ -115,10 +114,10 @@ func (syncer *BaseSynchronizer) processBatch(headers []rpcclient.BlockHeader) er
 		for _, businessId := range businessList {
 			var businessTransactions []*Transaction
 			for _, tx := range txList {
-				toAddress := common.HexToAddress(tx.To)
-				fromAddress := common.HexToAddress(tx.From)
-				existToAddress, toAddressType := syncer.database.Addresses.AddressExist(businessId.BusinessUid, &toAddress)
-				existFromAddress, FromAddressType := syncer.database.Addresses.AddressExist(businessId.BusinessUid, &fromAddress)
+				toAddress := tx.To
+				fromAddress := tx.From
+				existToAddress, toAddressType := syncer.database.Addresses.AddressExist(businessId.BusinessUid, syncer.rpcClient.ChainName, toAddress)
+				existFromAddress, FromAddressType := syncer.database.Addresses.AddressExist(businessId.BusinessUid, syncer.rpcClient.ChainName, fromAddress)
 				if !existToAddress && !existFromAddress {
 					continue
 				}

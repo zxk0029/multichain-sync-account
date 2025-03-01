@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
@@ -22,9 +23,9 @@ type Addresses struct {
 type AddressesView interface {
 	AddressExist(requestId string, chainName string, address string) (bool, AddressType)
 	QueryAddressesByToAddress(requestId string, chainName string, address string) (*Addresses, error)
-	QueryHotWalletInfo(string) (*Addresses, error)
-	QueryColdWalletInfo(string) (*Addresses, error)
-	GetAllAddresses(string) ([]*Addresses, error)
+	QueryHotWalletInfo(requestId string, chainName string) (*Addresses, error)
+	QueryColdWalletInfo(requestId string, chainName string) (*Addresses, error)
+	GetAllAddresses(requestId string, chainName string) ([]*Addresses, error)
 }
 
 type AddressesDB interface {
@@ -73,15 +74,23 @@ func (db *addressesDB) QueryAddressesByToAddress(requestId string, chainName str
 	return &addressEntry, nil
 }
 
-// StoreAddresses store address
+// StoreAddresses store address, if address already exists, do nothing
 func (db *addressesDB) StoreAddresses(requestId string, chainName string, addressList []*Addresses) error {
 	tableName := utils.GetTableName("addresses", requestId, chainName)
-	return db.gorm.Table(tableName).CreateInBatches(&addressList, len(addressList)).Error
+
+	// 使用 OnConflict.DoNothing() 在冲突时不更新
+	return db.gorm.Table(tableName).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "address"}},
+			DoNothing: true, // 当记录存在时不做任何操作
+		}).
+		CreateInBatches(addressList, len(addressList)).Error
 }
 
-func (db *addressesDB) QueryHotWalletInfo(requestId string) (*Addresses, error) {
+func (db *addressesDB) QueryHotWalletInfo(requestId string, chainName string) (*Addresses, error) {
 	var addressEntry Addresses
-	err := db.gorm.Table("addresses_"+requestId).
+	tableName := utils.GetTableName("addresses", requestId, chainName)
+	err := db.gorm.Table(tableName).
 		Where("address_type = ?", AddressTypeHot).
 		Take(&addressEntry).Error
 
@@ -94,9 +103,10 @@ func (db *addressesDB) QueryHotWalletInfo(requestId string) (*Addresses, error) 
 	return &addressEntry, nil
 }
 
-func (db *addressesDB) QueryColdWalletInfo(requestId string) (*Addresses, error) {
+func (db *addressesDB) QueryColdWalletInfo(requestId string, chainName string) (*Addresses, error) {
 	var addressEntry Addresses
-	err := db.gorm.Table("addresses_"+requestId).
+	tableName := utils.GetTableName("addresses", requestId, chainName)
+	err := db.gorm.Table(tableName).
 		Where("address_type = ?", AddressTypeCold).
 		Take(&addressEntry).Error
 
@@ -109,9 +119,10 @@ func (db *addressesDB) QueryColdWalletInfo(requestId string) (*Addresses, error)
 	return &addressEntry, nil
 }
 
-func (db *addressesDB) GetAllAddresses(requestId string) ([]*Addresses, error) {
+func (db *addressesDB) GetAllAddresses(requestId string, chainName string) ([]*Addresses, error) {
 	var addresses []*Addresses
-	err := db.gorm.Table("addresses_" + requestId).Find(&addresses).Error
+	tableName := utils.GetTableName("addresses", requestId, chainName)
+	err := db.gorm.Table(tableName).Find(&addresses).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

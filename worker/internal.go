@@ -23,6 +23,7 @@ type Internal struct {
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
 	ticker         *time.Ticker
+	chainName      string
 }
 
 func NewInternal(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Internal, error) {
@@ -35,7 +36,8 @@ func NewInternal(cfg *config.Config, db *database.DB, rpcClient *rpcclient.Walle
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in internals: %w", err))
 		}},
-		ticker: time.NewTicker(cfg.ChainNode.WorkerInterval),
+		ticker:    time.NewTicker(cfg.ChainNode.WorkerInterval),
+		chainName: rpcClient.ChainName,
 	}, nil
 }
 
@@ -66,7 +68,7 @@ func (w *Internal) Start() error {
 				}
 
 				for _, businessId := range businessList {
-					unSendTransactionList, err := w.db.Internals.UnSendInternalsList(businessId.BusinessUid)
+					unSendTransactionList, err := w.db.Internals.UnSendInternalsList(businessId.BusinessUid, w.chainName)
 					if err != nil {
 						log.Error("query un send internal tx list fail", "err", err)
 						continue
@@ -101,14 +103,14 @@ func (w *Internal) Start() error {
 						if err := w.db.Transaction(func(tx *database.DB) error {
 							if len(balanceList) > 0 {
 								log.Info("Update address balance", "totalTx", len(balanceList))
-								if err := tx.Balances.UpdateBalanceListByTwoAddress(businessId.BusinessUid, balanceList); err != nil {
+								if err := tx.Balances.UpdateBalanceListByTwoAddress(businessId.BusinessUid, w.chainName, balanceList); err != nil {
 									log.Error("Update address balance fail", "err", err)
 									return err
 								}
 
 							}
 							if len(unSendTransactionList) > 0 {
-								err = w.db.Internals.UpdateInternalListById(businessId.BusinessUid, unSendTransactionList)
+								err = w.db.Internals.UpdateInternalListById(businessId.BusinessUid, w.chainName, unSendTransactionList)
 								if err != nil {
 									log.Error("update internals status fail", "err", err)
 									return err

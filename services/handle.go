@@ -281,7 +281,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 
 	switch transactionType {
 	case database.TxTypeDeposit:
-		tx, err := bws.db.Deposits.QueryDepositsById(request.RequestId, request.TransactionId)
+		tx, err := bws.db.Deposits.QueryDepositsById(request.RequestId, bws.accountClient.ChainName, request.TransactionId)
 		if err != nil {
 			return nil, fmt.Errorf("query deposit failed: %w", err)
 		}
@@ -298,7 +298,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		maxPriorityFeePerGas = tx.MaxPriorityFeePerGas
 
 	case database.TxTypeWithdraw:
-		tx, err := bws.db.Withdraws.QueryWithdrawsById(request.RequestId, request.TransactionId)
+		tx, err := bws.db.Withdraws.QueryWithdrawsById(request.RequestId, bws.accountClient.ChainName, request.TransactionId)
 		if err != nil {
 			return nil, fmt.Errorf("query withdraw failed: %w", err)
 		}
@@ -315,7 +315,7 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 		maxPriorityFeePerGas = tx.MaxPriorityFeePerGas
 
 	case database.TxTypeCollection, database.TxTypeHot2Cold, database.TxTypeCold2Hot:
-		tx, err := bws.db.Internals.QueryInternalsById(request.RequestId, request.TransactionId)
+		tx, err := bws.db.Internals.QueryInternalsById(request.RequestId, bws.accountClient.ChainName, request.TransactionId)
 		if err != nil {
 			return nil, fmt.Errorf("query internal failed: %w", err)
 		}
@@ -400,11 +400,11 @@ func (bws *BusinessMiddleWireServices) BuildSignedTransaction(ctx context.Contex
 	var updateErr error
 	switch transactionType {
 	case database.TxTypeDeposit:
-		updateErr = bws.db.Deposits.UpdateDepositById(request.RequestId, request.TransactionId, returnTx.SignedTx, database.TxStatusSigned)
+		updateErr = bws.db.Deposits.UpdateDepositById(request.RequestId, bws.accountClient.ChainName, request.TransactionId, returnTx.SignedTx, database.TxStatusSigned)
 	case database.TxTypeWithdraw:
-		updateErr = bws.db.Withdraws.UpdateWithdrawById(request.RequestId, request.TransactionId, returnTx.SignedTx, database.TxStatusSigned)
+		updateErr = bws.db.Withdraws.UpdateWithdrawById(request.RequestId, bws.accountClient.ChainName, request.TransactionId, returnTx.SignedTx, database.TxStatusSigned)
 	case database.TxTypeCollection, database.TxTypeHot2Cold, database.TxTypeCold2Hot:
-		updateErr = bws.db.Internals.UpdateInternalById(request.RequestId, request.TransactionId, returnTx.SignedTx, database.TxStatusSigned)
+		updateErr = bws.db.Internals.UpdateInternalById(request.RequestId, bws.accountClient.ChainName, request.TransactionId, returnTx.SignedTx, database.TxStatusSigned)
 	default:
 		response.Msg = "Unsupported transaction type"
 		response.SignedTx = "0x00"
@@ -602,7 +602,7 @@ func (bws *BusinessMiddleWireServices) storeWithdraw(request *dal_wallet_go.UnSi
 		TxSignHex:            "",
 	}
 
-	return bws.db.Withdraws.StoreWithdraw(request.RequestId, withdraw)
+	return bws.db.Withdraws.StoreWithdraw(request.RequestId, bws.accountClient.ChainName, withdraw)
 }
 
 // 辅助方法：存储内部交易
@@ -630,7 +630,7 @@ func (bws *BusinessMiddleWireServices) storeInternal(request *dal_wallet_go.UnSi
 		TxSignHex:            "",
 	}
 
-	return bws.db.Internals.StoreInternal(request.RequestId, internal)
+	return bws.db.Internals.StoreInternal(request.RequestId, bws.accountClient.ChainName, internal)
 }
 
 func (bws *BusinessMiddleWireServices) StoreDeposits(ctx context.Context,
@@ -660,5 +660,5 @@ func (bws *BusinessMiddleWireServices) StoreDeposits(ctx context.Context,
 		TxSignHex:            "",
 	}
 
-	return bws.db.Deposits.StoreDeposits(depositsRequest.RequestId, []*database.Deposits{dbDeposit})
+	return bws.db.Deposits.StoreDeposits(depositsRequest.RequestId, bws.accountClient.ChainName, []*database.Deposits{dbDeposit})
 }

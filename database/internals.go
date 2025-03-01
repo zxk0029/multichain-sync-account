@@ -3,12 +3,15 @@ package database
 import (
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"math/big"
+
+	"gorm.io/gorm"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"
+
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
 
 type Internals struct {
@@ -44,21 +47,21 @@ type Internals struct {
 }
 
 type InternalsView interface {
-	QueryNotifyInternal(requestId string) ([]*Internals, error)
-	QueryInternalsByTxHash(requestId string, txHash common.Hash) (*Internals, error)
-	QueryInternalsById(requestId string, guid string) (*Internals, error)
-	UnSendInternalsList(requestId string) ([]*Internals, error)
+	QueryNotifyInternal(requestId string, chainName string) ([]*Internals, error)
+	QueryInternalsByTxHash(requestId string, chainName string, txHash common.Hash) (*Internals, error)
+	QueryInternalsById(requestId string, chainName string, guid string) (*Internals, error)
+	UnSendInternalsList(requestId string, chainName string) ([]*Internals, error)
 }
 
 type InternalsDB interface {
 	InternalsView
 
-	StoreInternal(string, *Internals) error
-	UpdateInternalByTxHash(requestId string, txHash common.Hash, signedTx string, status TxStatus) error
-	UpdateInternalById(requestId string, id string, signedTx string, status TxStatus) error
-	UpdateInternalStatusByTxHash(requestId string, status TxStatus, internalsList []*Internals) error
-	UpdateInternalListByHash(requestId string, internalsList []*Internals) error
-	UpdateInternalListById(requestId string, internalsList []*Internals) error
+	StoreInternal(requestId string, chainName string, internals *Internals) error
+	UpdateInternalByTxHash(requestId string, chainName string, txHash common.Hash, signedTx string, status TxStatus) error
+	UpdateInternalById(requestId string, chainName string, id string, signedTx string, status TxStatus) error
+	UpdateInternalStatusByTxHash(requestId string, chainName string, status TxStatus, internalsList []*Internals) error
+	UpdateInternalListByHash(requestId string, chainName string, internalsList []*Internals) error
+	UpdateInternalListById(requestId string, chainName string, internalsList []*Internals) error
 }
 
 type internalsDB struct {
@@ -69,9 +72,10 @@ func NewInternalsDB(db *gorm.DB) InternalsDB {
 	return &internalsDB{gorm: db}
 }
 
-func (db *internalsDB) QueryNotifyInternal(requestId string) ([]*Internals, error) {
+func (db *internalsDB) QueryNotifyInternal(requestId string, chainName string) ([]*Internals, error) {
+	tableName := utils.GetTableName("internals", requestId, chainName)
 	var notifyInternals []*Internals
-	result := db.gorm.Table("internals_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("status = ? or status = ?", TxStatusWalletDone, TxStatusNotified).
 		Find(&notifyInternals)
 	if result.Error != nil {
@@ -80,13 +84,15 @@ func (db *internalsDB) QueryNotifyInternal(requestId string) ([]*Internals, erro
 	return notifyInternals, nil
 }
 
-func (db *internalsDB) StoreInternal(requestId string, internals *Internals) error {
-	return db.gorm.Table("internals_" + requestId).Create(internals).Error
+func (db *internalsDB) StoreInternal(requestId string, chainName string, internals *Internals) error {
+	tableName := utils.GetTableName("internals", requestId, chainName)
+	return db.gorm.Table(tableName).Create(internals).Error
 }
 
-func (db *internalsDB) QueryInternalsByTxHash(requestId string, txHash common.Hash) (*Internals, error) {
+func (db *internalsDB) QueryInternalsByTxHash(requestId string, chainName string, txHash common.Hash) (*Internals, error) {
+	tableName := utils.GetTableName("internals", requestId, chainName)
 	var internalsEntity Internals
-	result := db.gorm.Table("internals_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("hash = ?", txHash.String()).
 		Take(&internalsEntity)
 	if result.Error != nil {
@@ -98,9 +104,10 @@ func (db *internalsDB) QueryInternalsByTxHash(requestId string, txHash common.Ha
 	return &internalsEntity, nil
 }
 
-func (db *internalsDB) QueryInternalsById(requestId string, guid string) (*Internals, error) {
+func (db *internalsDB) QueryInternalsById(requestId string, chainName string, guid string) (*Internals, error) {
+	tableName := utils.GetTableName("internals", requestId, chainName)
 	var internalsEntity Internals
-	result := db.gorm.Table("internals_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("guid = ?", guid).
 		Take(&internalsEntity)
 	if result.Error != nil {
@@ -112,9 +119,10 @@ func (db *internalsDB) QueryInternalsById(requestId string, guid string) (*Inter
 	return &internalsEntity, nil
 }
 
-func (db *internalsDB) UnSendInternalsList(requestId string) ([]*Internals, error) {
+func (db *internalsDB) UnSendInternalsList(requestId string, chainName string) ([]*Internals, error) {
+	tableName := utils.GetTableName("internals", requestId, chainName)
 	var internalsList []*Internals
-	err := db.gorm.Table("internals_"+requestId).
+	err := db.gorm.Table(tableName).
 		Where("status = ?", TxStatusSigned).
 		Find(&internalsList).Error
 	if err != nil {
@@ -129,7 +137,8 @@ type GasInfo struct {
 	MaxPriorityFeePerGas string
 }
 
-func (db *internalsDB) UpdateInternalByTxHash(requestId string, txHash common.Hash, signedTx string, status TxStatus) error {
+func (db *internalsDB) UpdateInternalByTxHash(requestId string, chainName string, txHash common.Hash, signedTx string, status TxStatus) error {
+	tableName := utils.GetTableName("internals", requestId, chainName)
 	updates := map[string]interface{}{
 		"status": status,
 	}
@@ -138,7 +147,7 @@ func (db *internalsDB) UpdateInternalByTxHash(requestId string, txHash common.Ha
 		updates["tx_sign_hex"] = signedTx
 	}
 
-	result := db.gorm.Table("internals_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("hash = ?", txHash.String()).
 		Updates(updates)
 
@@ -153,7 +162,8 @@ func (db *internalsDB) UpdateInternalByTxHash(requestId string, txHash common.Ha
 	return nil
 }
 
-func (db *internalsDB) UpdateInternalById(requestId string, id string, signedTx string, status TxStatus) error {
+func (db *internalsDB) UpdateInternalById(requestId string, chainName string, id string, signedTx string, status TxStatus) error {
+	tableName := utils.GetTableName("internals", requestId, chainName)
 	updates := map[string]interface{}{
 		"status": status,
 	}
@@ -162,7 +172,7 @@ func (db *internalsDB) UpdateInternalById(requestId string, id string, signedTx 
 		updates["tx_sign_hex"] = signedTx
 	}
 
-	result := db.gorm.Table("internals_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("guid = ?", id).
 		Updates(updates)
 
@@ -177,11 +187,11 @@ func (db *internalsDB) UpdateInternalById(requestId string, id string, signedTx 
 	return nil
 }
 
-func (db *internalsDB) UpdateInternalStatusByTxHash(requestId string, status TxStatus, internalsList []*Internals) error {
+func (db *internalsDB) UpdateInternalStatusByTxHash(requestId string, chainName string, status TxStatus, internalsList []*Internals) error {
 	if len(internalsList) == 0 {
 		return nil
 	}
-	tableName := fmt.Sprintf("internals_%s", requestId)
+	tableName := utils.GetTableName("internals", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		var txHashList []string
@@ -214,11 +224,11 @@ func (db *internalsDB) UpdateInternalStatusByTxHash(requestId string, status TxS
 	})
 }
 
-func (db *internalsDB) UpdateInternalListById(requestId string, internalsList []*Internals) error {
+func (db *internalsDB) UpdateInternalListById(requestId string, chainName string, internalsList []*Internals) error {
 	if len(internalsList) == 0 {
 		return nil
 	}
-	tableName := fmt.Sprintf("internals_%s", requestId)
+	tableName := utils.GetTableName("internals", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, internal := range internalsList {
@@ -249,11 +259,11 @@ func (db *internalsDB) UpdateInternalListById(requestId string, internalsList []
 	})
 }
 
-func (db *internalsDB) UpdateInternalListByHash(requestId string, internalsList []*Internals) error {
+func (db *internalsDB) UpdateInternalListByHash(requestId string, chainName string, internalsList []*Internals) error {
 	if len(internalsList) == 0 {
 		return nil
 	}
-	tableName := fmt.Sprintf("internals_%s", requestId)
+	tableName := utils.GetTableName("internals", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, internal := range internalsList {

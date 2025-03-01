@@ -4,11 +4,11 @@ import (
 	"errors"
 	"math/big"
 
-	"gorm.io/gorm"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 	"github.com/dapplink-labs/multichain-sync-account/rpcclient/chain-account/account"
 )
 
@@ -17,9 +17,9 @@ type Transactions struct {
 	BlockHash    common.Hash      `gorm:"column:block_hash;serializer:bytes"  db:"block_hash" json:"block_hash"`
 	BlockNumber  *big.Int         `gorm:"serializer:u256;column:block_number" db:"block_number" json:"BlockNumber" form:"block_number"`
 	Hash         common.Hash      `gorm:"column:hash;serializer:bytes"  db:"hash" json:"hash"`
-	FromAddress  common.Address   `json:"from_address" gorm:"serializer:bytes"`
-	ToAddress    common.Address   `json:"to_address" gorm:"serializer:bytes"`
-	TokenAddress common.Address   `json:"token_address" gorm:"serializer:bytes"`
+	FromAddress  string           `json:"from_address" gorm:"type:varchar;not null"`
+	ToAddress    string           `json:"to_address" gorm:"type:varchar;not null"`
+	TokenAddress string           `json:"token_address" gorm:"type:varchar"`
 	TokenId      string           `json:"token_id" gorm:"column:token_id"`
 	TokenMeta    string           `json:"token_meta" gorm:"column:token_meta"`
 	Fee          *big.Int         `gorm:"serializer:u256;column:fee" db:"fee" json:"Fee" form:"fee"`
@@ -30,14 +30,14 @@ type Transactions struct {
 }
 
 type TransactionsView interface {
-	QueryTransactionByHash(requestId string, hash common.Hash) (*Transactions, error)
+	QueryTransactionByHash(requestId string, chainName string, hash common.Hash) (*Transactions, error)
 }
 
 type TransactionsDB interface {
 	TransactionsView
 
-	StoreTransactions(string, []*Transactions, uint64) error
-	UpdateTransactionsStatus(requestId string, blockNumber *big.Int) error
+	StoreTransactions(requestId string, chainName string, transactionsList []*Transactions, transactionsLength uint64) error
+	UpdateTransactionsStatus(requestId string, chainName string, blockNumber *big.Int) error
 	UpdateTransactionStatus(requestId string, txList []*Transactions) error
 }
 
@@ -45,9 +45,10 @@ type transactionsDB struct {
 	gorm *gorm.DB
 }
 
-func (db *transactionsDB) QueryTransactionByHash(requestId string, hash common.Hash) (*Transactions, error) {
+func (db *transactionsDB) QueryTransactionByHash(requestId string, chainName string, hash common.Hash) (*Transactions, error) {
+	tableName := utils.GetTableName("transactions", requestId, chainName)
 	var transactionEntry Transactions
-	result := db.gorm.Table("transactions_"+requestId).Where("hash", hash.String()).Take(&transactionEntry)
+	result := db.gorm.Table(tableName).Where("hash", hash.String()).Take(&transactionEntry)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -57,8 +58,9 @@ func (db *transactionsDB) QueryTransactionByHash(requestId string, hash common.H
 	return &transactionEntry, nil
 }
 
-func (db *transactionsDB) UpdateTransactionsStatus(requestId string, blockNumber *big.Int) error {
-	result := db.gorm.Table("transactions_"+requestId).Where("status = ? and block_number = ?", 0, blockNumber).Updates(map[string]interface{}{"status": gorm.Expr("GREATEST(1)")})
+func (db *transactionsDB) UpdateTransactionsStatus(requestId string, chainName string, blockNumber *big.Int) error {
+	tableName := utils.GetTableName("transactions", requestId, chainName)
+	result := db.gorm.Table(tableName).Where("status = ? and block_number = ?", 0, blockNumber).Updates(map[string]interface{}{"status": gorm.Expr("GREATEST(1)")})
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil
@@ -72,8 +74,9 @@ func NewTransactionsDB(db *gorm.DB) TransactionsDB {
 	return &transactionsDB{gorm: db}
 }
 
-func (db *transactionsDB) StoreTransactions(requestId string, transactionsList []*Transactions, transactionsLength uint64) error {
-	result := db.gorm.Table("transactions_"+requestId).CreateInBatches(transactionsList, int(transactionsLength))
+func (db *transactionsDB) StoreTransactions(requestId string, chainName string, transactionsList []*Transactions, transactionsLength uint64) error {
+	tableName := utils.GetTableName("transactions", requestId, chainName)
+	result := db.gorm.Table(tableName).CreateInBatches(transactionsList, int(transactionsLength))
 	return result.Error
 }
 

@@ -107,7 +107,7 @@ func runNotify(ctx *cli.Context, shutdown context.CancelCauseFunc) (cliapp.Lifec
 		log.Error("failed to connect to database", "err", err)
 		return nil, err
 	}
-	return notifier.NewNotifier(db, shutdown)
+	return notifier.NewNotifier(db, shutdown, cfg.ChainNode.ChainName)
 }
 
 func NewCli(GitCommit string, GitData string) *cli.App {

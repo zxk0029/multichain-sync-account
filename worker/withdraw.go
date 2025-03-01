@@ -23,6 +23,7 @@ type Withdraw struct {
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
 	ticker         *time.Ticker
+	chainName      string
 }
 
 func NewWithdraw(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Withdraw, error) {
@@ -35,7 +36,8 @@ func NewWithdraw(cfg *config.Config, db *database.DB, rpcClient *rpcclient.Walle
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in withdraw: %w", err))
 		}},
-		ticker: time.NewTicker(cfg.ChainNode.WorkerInterval),
+		ticker:    time.NewTicker(cfg.ChainNode.WorkerInterval),
+		chainName: rpcClient.ChainName,
 	}, nil
 }
 
@@ -65,7 +67,7 @@ func (w *Withdraw) Start() error {
 				}
 
 				for _, businessId := range businessList {
-					unSendTransactionList, err := w.db.Withdraws.UnSendWithdrawsList(businessId.BusinessUid)
+					unSendTransactionList, err := w.db.Withdraws.UnSendWithdrawsList(businessId.BusinessUid, w.chainName)
 					if err != nil {
 						log.Error("Query un send withdraws list fail", "err", err)
 						continue
@@ -100,13 +102,13 @@ func (w *Withdraw) Start() error {
 						if err := w.db.Transaction(func(tx *database.DB) error {
 							if len(balanceList) > 0 {
 								log.Info("Update address balance", "totalTx", len(balanceList))
-								if err := tx.Balances.UpdateBalanceListByTwoAddress(businessId.BusinessUid, balanceList); err != nil {
+								if err := tx.Balances.UpdateBalanceListByTwoAddress(businessId.BusinessUid, w.chainName, balanceList); err != nil {
 									log.Error("Update address balance fail", "err", err)
 									return err
 								}
 							}
 							if len(unSendTransactionList) > 0 {
-								err = w.db.Withdraws.UpdateWithdrawListById(businessId.BusinessUid, unSendTransactionList)
+								err = w.db.Withdraws.UpdateWithdrawListById(businessId.BusinessUid, w.chainName, unSendTransactionList)
 								if err != nil {
 									log.Error("update withdraw status fail", "err", err)
 									return err

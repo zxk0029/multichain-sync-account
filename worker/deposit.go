@@ -28,6 +28,7 @@ type Deposit struct {
 	resourceCtx    context.Context
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
+	chainName      string
 }
 
 func NewDeposit(cfg *config.Config, db *database.DB, rpcClient *rpcclient.WalletChainAccountClient, shutdown context.CancelCauseFunc) (*Deposit, error) {
@@ -78,6 +79,7 @@ func NewDeposit(cfg *config.Config, db *database.DB, rpcClient *rpcclient.Wallet
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in deposit: %w", err))
 		}},
+		chainName: rpcClient.ChainName,
 	}, nil
 }
 
@@ -193,37 +195,37 @@ func (deposit *Deposit) handleBatch(batch map[string]*TransactionsChannel) error
 			if err := deposit.database.Transaction(func(tx *database.DB) error {
 				if len(depositList) > 0 {
 					log.Info("Store deposit transaction success", "totalTx", len(depositList))
-					if err := tx.Deposits.StoreDeposits(business.BusinessUid, depositList); err != nil {
+					if err := tx.Deposits.StoreDeposits(business.BusinessUid, deposit.chainName, depositList); err != nil {
 						return err
 					}
 				}
 
-				if err := tx.Deposits.UpdateDepositsComfirms(business.BusinessUid, batch[business.BusinessUid].BlockHeight, uint64(deposit.confirms)); err != nil {
+				if err := tx.Deposits.UpdateDepositsComfirms(business.BusinessUid, deposit.chainName, batch[business.BusinessUid].BlockHeight, uint64(deposit.confirms)); err != nil {
 					log.Info("Handle confims fail", "totalTx", "err", err)
 					return err
 				}
 
 				if len(balances) > 0 {
 					log.Info("Handle balances success", "totalTx", len(balances))
-					if err := tx.Balances.UpdateOrCreate(business.BusinessUid, business.ChainName, balances); err != nil {
+					if err := tx.Balances.UpdateOrCreate(business.BusinessUid, deposit.chainName, balances); err != nil {
 						return err
 					}
 				}
 
 				if len(withdrawList) > 0 {
-					if err := tx.Withdraws.UpdateWithdrawStatusByTxHash(business.BusinessUid, database.TxStatusWalletDone, withdrawList); err != nil {
+					if err := tx.Withdraws.UpdateWithdrawStatusByTxHash(business.BusinessUid, deposit.chainName, database.TxStatusWalletDone, withdrawList); err != nil {
 						return err
 					}
 				}
 
 				if len(internals) > 0 {
-					if err := tx.Internals.UpdateInternalStatusByTxHash(business.BusinessUid, database.TxStatusWalletDone, internals); err != nil {
+					if err := tx.Internals.UpdateInternalStatusByTxHash(business.BusinessUid, deposit.chainName, database.TxStatusWalletDone, internals); err != nil {
 						return err
 					}
 				}
 
 				if len(transactionFlowList) > 0 {
-					if err := tx.Transactions.StoreTransactions(business.BusinessUid, transactionFlowList, uint64(len(transactionFlowList))); err != nil {
+					if err := tx.Transactions.StoreTransactions(business.BusinessUid, deposit.chainName, transactionFlowList, uint64(len(transactionFlowList))); err != nil {
 						return err
 					}
 				}
@@ -311,9 +313,9 @@ func (deposit *Deposit) BuildTransaction(tx *Transaction, txMsg *account.TxMessa
 		BlockHash:    common.Hash{},
 		BlockNumber:  tx.BlockNumber,
 		Hash:         common.HexToHash(tx.Hash),
-		FromAddress:  common.HexToAddress(tx.FromAddress),
-		ToAddress:    common.HexToAddress(tx.ToAddress),
-		TokenAddress: common.HexToAddress(tx.TokenAddress),
+		FromAddress:  tx.FromAddress,
+		ToAddress:    tx.ToAddress,
+		TokenAddress: tx.TokenAddress,
 		TokenId:      "0x00",
 		TokenMeta:    "0x00",
 		Fee:          txFee,

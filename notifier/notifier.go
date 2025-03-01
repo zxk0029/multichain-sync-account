@@ -22,12 +22,13 @@ type Notifier struct {
 	resourceCancel context.CancelFunc
 	tasks          tasks.Group
 	ticker         *time.Ticker
+	chainName      string
 
 	shutdown context.CancelCauseFunc
 	stopped  atomic.Bool
 }
 
-func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, error) {
+func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc, chainName string) (*Notifier, error) {
 	businessList, err := db.Business.QueryBusinessList()
 	if err != nil {
 		log.Error("query business list fail", "err", err)
@@ -59,7 +60,8 @@ func NewNotifier(db *database.DB, shutdown context.CancelCauseFunc) (*Notifier, 
 		tasks: tasks.Group{HandleCrit: func(err error) {
 			shutdown(fmt.Errorf("critical error in internals: %w", err))
 		}},
-		ticker: time.NewTicker(time.Second * 5),
+		ticker:    time.NewTicker(time.Second * 5),
+		chainName: chainName,
 	}, nil
 }
 
@@ -73,19 +75,19 @@ func (nf *Notifier) Start(ctx context.Context) error {
 				for _, businessId := range nf.businessIds {
 					log.Info("txn and businessId", "txn", txn, "businessId", businessId)
 
-					needNotifyDeposits, err := nf.db.Deposits.QueryNotifyDeposits(businessId)
+					needNotifyDeposits, err := nf.db.Deposits.QueryNotifyDeposits(businessId, nf.chainName)
 					if err != nil {
 						log.Error("Query notify deposits fail", "err", err)
 						return err
 					}
 
-					needNotifyWithdraws, err := nf.db.Withdraws.QueryNotifyWithdraws(businessId)
+					needNotifyWithdraws, err := nf.db.Withdraws.QueryNotifyWithdraws(businessId, nf.chainName)
 					if err != nil {
 						log.Error("Query notify deposits fail", "err", err)
 						return err
 					}
 
-					needNotifyInternals, err := nf.db.Internals.QueryNotifyInternal(businessId)
+					needNotifyInternals, err := nf.db.Internals.QueryNotifyInternal(businessId, nf.chainName)
 					if err != nil {
 						log.Error("Query notify deposits fail", "err", err)
 						return err
@@ -167,18 +169,18 @@ func (nf *Notifier) BeforeAfterNotify(businessId string, isBefore bool, notifySu
 	if _, err := retry.Do[interface{}](nf.resourceCtx, 10, retryStrategy, func() (interface{}, error) {
 		if err := nf.db.Transaction(func(tx *database.DB) error {
 			if len(deposits) > 0 {
-				if err := tx.Deposits.UpdateDepositsStatusByTxHash(businessId, depositsNotifyStatus, updateStutusDepositTxn); err != nil {
+				if err := tx.Deposits.UpdateDepositsStatusByTxHash(businessId, nf.chainName, depositsNotifyStatus, updateStutusDepositTxn); err != nil {
 					return err
 				}
 			}
 			if len(withdraws) > 0 {
-				if err := tx.Withdraws.UpdateWithdrawStatusByTxHash(businessId, withdrawNotifyStatus, withdraws); err != nil {
+				if err := tx.Withdraws.UpdateWithdrawStatusByTxHash(businessId, nf.chainName, withdrawNotifyStatus, withdraws); err != nil {
 					return err
 				}
 			}
 
 			if len(internals) > 0 {
-				if err := tx.Internals.UpdateInternalStatusByTxHash(businessId, internalNotifyStatus, internals); err != nil {
+				if err := tx.Internals.UpdateInternalStatusByTxHash(businessId, nf.chainName, internalNotifyStatus, internals); err != nil {
 					return err
 				}
 			}

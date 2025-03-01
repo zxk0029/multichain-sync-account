@@ -3,13 +3,14 @@ package database
 import (
 	"errors"
 	"fmt"
-
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/dapplink-labs/multichain-sync-account/database/utils"
 )
 
 type Withdraws struct {
@@ -45,31 +46,32 @@ type Withdraws struct {
 }
 
 type WithdrawsView interface {
-	QueryNotifyWithdraws(requestId string) ([]*Withdraws, error)
-	QueryWithdrawsByHash(requestId string, txHash common.Hash) (*Withdraws, error)
-	QueryWithdrawsById(requestId string, guid string) (*Withdraws, error)
-	UnSendWithdrawsList(requestId string) ([]*Withdraws, error)
+	QueryNotifyWithdraws(requestId string, chainName string) ([]*Withdraws, error)
+	QueryWithdrawsByHash(requestId string, chainName string, txHash common.Hash) (*Withdraws, error)
+	QueryWithdrawsById(requestId string, chainName string, guid string) (*Withdraws, error)
+	UnSendWithdrawsList(requestId string, chainName string) ([]*Withdraws, error)
 }
 
 type WithdrawsDB interface {
 	WithdrawsView
 
-	StoreWithdraw(requestId string, withdraw *Withdraws) error
-	UpdateWithdrawByTxHash(requestId string, txHash common.Hash, signedTx string, status TxStatus) error
-	UpdateWithdrawById(requestId string, guid string, signedTx string, status TxStatus) error
-	UpdateWithdrawStatusById(requestId string, status TxStatus, withdrawsList []*Withdraws) error
-	UpdateWithdrawStatusByTxHash(requestId string, status TxStatus, withdrawsList []*Withdraws) error
-	UpdateWithdrawListByTxHash(requestId string, withdrawsList []*Withdraws) error
-	UpdateWithdrawListById(requestId string, withdrawsList []*Withdraws) error
+	StoreWithdraw(requestId string, chainName string, withdraw *Withdraws) error
+	UpdateWithdrawByTxHash(requestId string, chainName string, txHash common.Hash, signedTx string, status TxStatus) error
+	UpdateWithdrawById(requestId string, chainName string, guid string, signedTx string, status TxStatus) error
+	UpdateWithdrawStatusById(requestId string, chainName string, status TxStatus, withdrawsList []*Withdraws) error
+	UpdateWithdrawStatusByTxHash(requestId string, chainName string, status TxStatus, withdrawsList []*Withdraws) error
+	UpdateWithdrawListByTxHash(requestId string, chainName string, withdrawsList []*Withdraws) error
+	UpdateWithdrawListById(requestId string, chainName string, withdrawsList []*Withdraws) error
 }
 
 type withdrawsDB struct {
 	gorm *gorm.DB
 }
 
-func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]*Withdraws, error) {
+func (db *withdrawsDB) QueryNotifyWithdraws(requestId string, chainName string) ([]*Withdraws, error) {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 	var notifyWithdraws []*Withdraws
-	result := db.gorm.Table("withdraws_"+requestId).
+	result := db.gorm.Table(tableName).
 		Where("status = ? or status = ?", TxStatusWalletDone, TxStatusNotified).
 		Find(&notifyWithdraws)
 
@@ -80,9 +82,10 @@ func (db *withdrawsDB) QueryNotifyWithdraws(requestId string) ([]*Withdraws, err
 	return notifyWithdraws, nil
 }
 
-func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]*Withdraws, error) {
+func (db *withdrawsDB) UnSendWithdrawsList(requestId string, chainName string) ([]*Withdraws, error) {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 	var withdrawsList []*Withdraws
-	err := db.gorm.Table("withdraws_"+requestId).
+	err := db.gorm.Table(tableName).
 		Where("status = ?", TxStatusSigned).
 		Find(&withdrawsList).Error
 
@@ -93,9 +96,10 @@ func (db *withdrawsDB) UnSendWithdrawsList(requestId string) ([]*Withdraws, erro
 	return withdrawsList, nil
 }
 
-func (db *withdrawsDB) QueryWithdrawsById(requestId string, guid string) (*Withdraws, error) {
+func (db *withdrawsDB) QueryWithdrawsById(requestId string, chainName string, guid string) (*Withdraws, error) {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 	var withdrawsEntity Withdraws
-	result := db.gorm.Table("withdraws_"+requestId).Where("guid = ?", guid).Take(&withdrawsEntity)
+	result := db.gorm.Table(tableName).Where("guid = ?", guid).Take(&withdrawsEntity)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -105,9 +109,10 @@ func (db *withdrawsDB) QueryWithdrawsById(requestId string, guid string) (*Withd
 	return &withdrawsEntity, nil
 }
 
-func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, txHash common.Hash) (*Withdraws, error) {
+func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, chainName string, txHash common.Hash) (*Withdraws, error) {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 	var withdrawsEntity Withdraws
-	result := db.gorm.Table("withdraws_"+requestId).Where("hash = ?", txHash.String()).Take(&withdrawsEntity)
+	result := db.gorm.Table(tableName).Where("hash = ?", txHash.String()).Take(&withdrawsEntity)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -117,8 +122,8 @@ func (db *withdrawsDB) QueryWithdrawsByHash(requestId string, txHash common.Hash
 	return &withdrawsEntity, nil
 }
 
-func (db *withdrawsDB) UpdateWithdrawByTxHash(requestId string, txHash common.Hash, signedTx string, status TxStatus) error {
-	tableName := fmt.Sprintf("withdraws_%s", requestId)
+func (db *withdrawsDB) UpdateWithdrawByTxHash(requestId string, chainName string, txHash common.Hash, signedTx string, status TxStatus) error {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 
 	if err := db.CheckWithdrawExistsByTxHash(tableName, txHash); err != nil {
 		return err
@@ -148,8 +153,8 @@ func (db *withdrawsDB) UpdateWithdrawByTxHash(requestId string, txHash common.Ha
 	return nil
 }
 
-func (db *withdrawsDB) UpdateWithdrawById(requestId string, guid string, signedTx string, status TxStatus) error {
-	tableName := fmt.Sprintf("withdraws_%s", requestId)
+func (db *withdrawsDB) UpdateWithdrawById(requestId string, chainName string, guid string, signedTx string, status TxStatus) error {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 
 	if err := db.CheckWithdrawExistsById(tableName, guid); err != nil {
 		return err
@@ -183,15 +188,16 @@ func NewWithdrawsDB(db *gorm.DB) WithdrawsDB {
 	return &withdrawsDB{gorm: db}
 }
 
-func (db *withdrawsDB) StoreWithdraw(requestId string, withdraw *Withdraws) error {
-	return db.gorm.Table("withdraws_" + requestId).Create(&withdraw).Error
+func (db *withdrawsDB) StoreWithdraw(requestId string, chainName string, withdraw *Withdraws) error {
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
+	return db.gorm.Table(tableName).Create(withdraw).Error
 }
 
-func (db *withdrawsDB) UpdateWithdrawStatusById(requestId string, status TxStatus, withdrawsList []*Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawStatusById(requestId string, chainName string, status TxStatus, withdrawsList []*Withdraws) error {
 	if len(withdrawsList) == 0 {
 		return nil
 	}
-	tableName := fmt.Sprintf("withdraws_%s", requestId)
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		var guids []uuid.UUID
@@ -224,11 +230,11 @@ func (db *withdrawsDB) UpdateWithdrawStatusById(requestId string, status TxStatu
 	})
 }
 
-func (db *withdrawsDB) UpdateWithdrawStatusByTxHash(requestId string, status TxStatus, withdrawsList []*Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawStatusByTxHash(requestId string, chainName string, status TxStatus, withdrawsList []*Withdraws) error {
 	if len(withdrawsList) == 0 {
 		return nil
 	}
-	tableName := fmt.Sprintf("withdraws_%s", requestId)
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		var txHashList []string
@@ -261,12 +267,12 @@ func (db *withdrawsDB) UpdateWithdrawStatusByTxHash(requestId string, status TxS
 	})
 }
 
-func (db *withdrawsDB) UpdateWithdrawListByTxHash(requestId string, withdrawsList []*Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawListByTxHash(requestId string, chainName string, withdrawsList []*Withdraws) error {
 	if len(withdrawsList) == 0 {
 		return nil
 	}
 
-	tableName := fmt.Sprintf("withdraws_%s", requestId)
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, withdraw := range withdrawsList {
@@ -297,12 +303,12 @@ func (db *withdrawsDB) UpdateWithdrawListByTxHash(requestId string, withdrawsLis
 	})
 }
 
-func (db *withdrawsDB) UpdateWithdrawListById(requestId string, withdrawsList []*Withdraws) error {
+func (db *withdrawsDB) UpdateWithdrawListById(requestId string, chainName string, withdrawsList []*Withdraws) error {
 	if len(withdrawsList) == 0 {
 		return nil
 	}
 
-	tableName := fmt.Sprintf("withdraws_%s", requestId)
+	tableName := utils.GetTableName("withdraws", requestId, chainName)
 
 	return db.gorm.Transaction(func(tx *gorm.DB) error {
 		for _, withdraw := range withdrawsList {

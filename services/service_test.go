@@ -13,8 +13,8 @@ import (
 
 func init() {
 	//SetTestChain(ChainTypeEthereum)
-	//SetTestChain(ChainTypeSolana)
-	SetTestChain("")
+	SetTestChain(ChainTypeSolana)
+	//SetTestChain("")
 }
 
 // validateAddress 验证地址格式
@@ -109,8 +109,8 @@ func Test_ExportAddresses(t *testing.T) {
 
 // Test_CreateUnSignTransaction 测试交易创建功能
 func Test_CreateUnSignTransaction(t *testing.T) {
-	//txTypes := []string{"collection", "hot2cold", "withdraw", "deposit"}
-	txTypes := []string{"deposit"}
+	txTypes := []string{"collection", "hot2cold", "withdraw", "deposit"}
+	//txTypes := []string{"deposit"}
 
 	for chainType, chainConfig := range ChainConfigs {
 		if !shouldRunChainTest(t, chainType) {
